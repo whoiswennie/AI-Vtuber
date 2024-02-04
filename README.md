@@ -1,2 +1,16 @@
-# AI-Vtuber
-一个端到端的AI主播定制模块，个人会一直维护下去的。
+# AI-VTUBER
+
+## 使用须知
+
+
+
+
+
+
+
+## 环境配置
+
+```pyth
+pip install -r requirements.txt
+```
+
