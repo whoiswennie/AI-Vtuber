@@ -1,0 +1,69 @@
+{
+    "ai_vtuber": {
+        "if_agent": 0,
+        "prompt": "",
+        "name": "",
+        "setting": "",
+        "sex": "",
+        "emotion": "",
+        "plan_to_do": ""
+
+    },
+    "bilibili": {
+        "blivedm": {
+            "ACCESS_KEY_ID": "",
+            "ACCESS_KEY_SECRET": "",
+            "APP_ID": 0,
+            "ROOM_OWNER_AUTH_CODE": ""
+        },
+        "bilibili-api": {
+            "room_id": "",
+            "sessdata": "",
+            "buvid3": "",
+            "dedeuserid": ""
+        },
+        "is_ai_ready": 1,
+        "is_tts_ready": 1,
+        "is_tts_play_ready": 1,
+        "is_song_play_ready": 1,
+        "is_song_cover_ready": 1,
+        "is_obs_ready": 0,
+        "is_obs_play_ready": 1,
+        "is_web_captions_printer_ready": 1,
+        "AudioPlay": 0,
+        "AudioCount": 0
+    },
+    "songdatabase": {
+        "song_csv_path": "csv/¸è¿â.csv",
+        "song_dict_path": "configs/song_dict.json",
+        "song_path": "C:/Users/32873/Desktop/»Ã½´µÄ¸è¿â",
+        "similarity_threshold": 67,
+        "search_key": "¸èÃû"
+    },
+    "api_path": {
+        "so_vits_svc": {
+            "url": "http://127.0.0.1:1145/wav2wav",
+            "tran": 0,
+            "spk": "huan",
+            "wav_format": "wav"
+        },
+        "bert_vits2": {},
+        "llm_api": {
+            "zhipuai_key": ""
+        },
+        "neo4j": {
+            "url": "bolt://localhost:7687",
+            "user": "neo4j",
+            "password": ""
+        },
+        "fast-whisper": {
+            "model_path": "faster-whisper-webui/Models/faster-whisper/large-v2"
+        },
+        "web_captions_printer": {
+            "port": "http://127.0.0.1:5500"
+        }
+    },
+    "songlist": [
+        "°Ñ»ØÒäÆ´ºÃ¸øÄã"
+    ]
+}

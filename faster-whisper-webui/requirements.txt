@@ -1,0 +1,9 @@
+ctranslate2
+faster-whisper
+ffmpeg-python==0.2.0
+gradio==3.23.0 
+yt-dlp
+json5
+torch
+torchaudio
+more_itertools
