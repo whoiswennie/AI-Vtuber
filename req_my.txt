@@ -1,4 +1,0 @@
-numba==0.48.0
-numpy==1.19.2
-librosa==0.7.2
-torch==1.8.0

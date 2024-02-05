@@ -16,22 +16,17 @@ def sing_for_svc(song_name):
     # 执行命令
     os.system(command)
     svc_api_request.Svc()
-    svc_api_request.Svc()
     # 读取人声和伴奏音频文件
     vocal_file = f"output/template_upload/svc.wav"
     instrumental_file = f"output/template_upload/wav_instrument.wav"
-
     # 加载人声和伴奏音频
     vocal = AudioSegment.from_file(vocal_file)
     instrumental = AudioSegment.from_file(instrumental_file)
-
     # 确保两个音频文件具有相同的采样率和通道数
     vocal = vocal.set_frame_rate(instrumental.frame_rate)
     vocal = vocal.set_channels(instrumental.channels)
-
     # 将人声和伴奏音频混合在一起
     merged_audio = vocal.overlay(instrumental)
-
     # 保存合并后的音频文件
     output_file = f"download/output.wav"
     merged_audio.export(output_file, format="wav")
