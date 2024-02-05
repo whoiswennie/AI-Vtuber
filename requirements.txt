@@ -1,5 +1,6 @@
 fuzzywuzzy==0.18.0
 pandas
+apscheduler
 ctranslate2
 json5
 more_itertools
