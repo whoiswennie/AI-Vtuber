@@ -258,7 +258,10 @@ def main():
     if page == "使用教程":
         selection = st.sidebar.radio("请选择一个选项：", ["版本介绍", "项目简介", "使用说明"])
         if selection == "版本介绍":
-            st.write("这是版本介绍的内容...")
+            st.markdown("---")
+            st.markdown("### 当前版本beta0.1")
+            st.write("当前版本正在熟悉和探索各种功能，bug很多，代码复用性差，秉承着能跑起来就行的原则。下个阶段目标：调整哔哩哔哩api监听方案，提供更丰富的直播间互动元素，增加语言模型与模型数据库的关联性。")
+            st.markdown("---")
         elif selection == "项目简介":
             st.write("这是项目简介的内容...")
         elif selection == "使用说明":
