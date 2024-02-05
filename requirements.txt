@@ -4,11 +4,11 @@ ctranslate2
 json5
 more_itertools
 yt-dlp
-gradio
 py2neo
 neo4j==5.16.0
 ffmpeg-python==0.2.0
 edge_tts
+lxml
 faster-whisper
 zhipuai
 langchain
@@ -19,7 +19,7 @@ streamlit
 pyaudio
 Pillow
 audioread
-tqdm==4.45.0
+tqdm>=4.65.0
 resampy==0.2.2
 opencv-python
 librosa==0.9.2

@@ -17,8 +17,12 @@ conda create --name ai-vtuber python=3.10
 ## 配置环境
 
 ```pyth
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+# 先执行
 pip install -r requirements.txt
+# 国内源通常会下载cpu版的torch，手动卸载
+pip uninstall torch
+# 下载cuda版本的torch
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 ```
 
 #### 更多详细教程请运行
