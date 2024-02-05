@@ -51,8 +51,11 @@ streamlit run streamlit_agent.py
 voicemeeter
 
 #### 预训练模型存放路径
+
 【faster-whisper】
+
 ###### AI-Vtuber/faster-whisper-webui/Models/faster-whisper/large-v2（v3暂时有bug）
+###### AI-Vtuber/faster-whisper-webui/Models/silero-vad
 
 【gte-base-zh】
 
