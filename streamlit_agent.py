@@ -242,20 +242,6 @@ def main():
         .stApp {
             background-color: rgba(135, 206, 235, 0.2); /* 使用rgba设置透明度 */
         }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-    st.markdown(
-        """
-        <style>
-        body {
-            background-color: rgba(135, 206, 235, 0.2); /* 使用rgba设置透明度 */
-            color: white;
-        }
-        .stApp {
-            background-color: rgba(135, 206, 235, 0.2); /* 使用rgba设置透明度 */
-        }
         .sidebar .sidebar-content {
             background-color: rgba(192, 192, 192, 0.2); /* 使用rgba设置透明度 */
         }
@@ -268,13 +254,74 @@ def main():
         st.title('AI-Vtuber')
         st.markdown('项目作者:这就是天幻呀')
         st.markdown('---')
-        page = st.sidebar.radio("页面导航", ["教程","AI-Vtuber配置文件","AI-Vtuber","歌库","认知学习"])
-    if page == "教程":
-        st.title("教程")
-        st.write("这是教程的内容。")
-    elif page == "AI-Vtuber配置文件":
-        st.title("AI-Vtuber配置文件")
-        st.write("这是配置文件")
+        page = st.sidebar.radio("页面导航", ["使用教程","AI-Vtuber","歌库","认知学习"])
+    if page == "使用教程":
+        selection = st.sidebar.radio("请选择一个选项：", ["版本介绍", "项目简介", "使用说明"])
+        if selection == "版本介绍":
+            st.write("这是版本介绍的内容...")
+        elif selection == "项目简介":
+            st.write("这是项目简介的内容...")
+        elif selection == "使用说明":
+            st.title("说明文档")
+            st.markdown("---")
+            tutorial_select = st.selectbox('请选择一个选项：', ['环境配置', '前期准备', '功能使用'])
+            if tutorial_select == "环境配置":
+                st.markdown("### 一、环境配置")
+                st.markdown("```pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121```")
+                st.markdown("```pip install -r requirements.txt```")
+                st.markdown("### 二、预训练模型准备")
+                st.markdown("##### 1.faster-whisper-large-v2")
+                st.markdown("```https://huggingface.co/guillaumekln/faster-whisper-large-v2```")
+                st.markdown("##### 2.向量词嵌入模型")
+                st.markdown("```https://huggingface.co/thenlper/gte-base-zh```")
+            elif tutorial_select == "前期准备":
+                st.markdown("### 前期准备")
+                st.markdown("##### 填写配置文件")
+                st.text_area("ai主播基础设置","填写基础信息和人物设定。")
+                data_0 = {
+                    "参数": ["if_agent","prompt","name","setting","sex","emotion","plan_to_do"],
+                    "参数介绍": ["agent的开关，暂时没用","强制角色扮演的提示词","ai主播的名称","扮演的角色设定","角色性别","情绪值【范围0-100】","ai代理的计划任务"]
+                }
+                df_0 = pd.DataFrame(data_0)
+                st.write("哔哩哔哩直播监听配置参数介绍：")
+                st.dataframe(df_0)
+                st.text_area("b站监听设置", "biblibili开放平台\nb站开放平台https://open-live.bilibili.com/注册成为开发者，“直播创作者服务中心” 创建项目，获取 项目ID 、 access_key_id 、 access_key_secred填写到config中blivedm中\n")
+                data_1 = {
+                    "参数": ["ACCESS_KEY_ID", "ACCESS_KEY_SECRET", "APP_ID", "ROOM_OWNER_AUTH_CODE"],
+                    "参数介绍": ["开放平台入驻的密钥ID", "开放平台入驻的密钥", "开放平台创建的项目ID", "主播身份码（可以在哔哩哔哩直播中心查看）"]
+                }
+                df_1 = pd.DataFrame(data_1)
+                st.write("其余api端口配置文件参数介绍：")
+                st.dataframe(df_1)
+                data_2 = {
+                    "参数": ["so_vits_svc.url", "so_vits_svc.tran", "so_vits_svc.spk", "so_vits_svc.wav_format","llm_api.zhipuai_key","neo4j.url","neo4j.user","neo4j.password","uvr5.model","fast-whisper.model_path","web_captions_printer.port"],
+                    "参数介绍": ["你部署的so-vits-svc（4.1）路由", "so-vits-svc（4.1）的转换音调", "so-vits-svc（4.1）的说话人身份","so-vits-svc（4.1）转换音频格式", "语言模型:智谱api的密钥","图数据库的路由","图数据库的账号","图数据库的密码","直播时使用的人声分离模型默认模型","语音转文本的模型路径","字幕打印器的路由"]
+                }
+                df_2 = pd.DataFrame(data_2)
+                st.write("config配置文件标签介绍：")
+                st.dataframe(df_2)
+                st.markdown("##### 制作歌库")
+                data_3 = {
+                    "标签": ["歌曲id", "歌名", "歌曲语言", "演唱人数",
+                           "歌词", "歌曲来源", "歌曲简介", "风格", "标签",
+                           "播放次数", "个人评价","个人评分","最近一次播放"],
+                    "知识图谱": ["/", "可搜索", "可搜索",
+                             "可搜索", "/", "可搜索", "/", "可搜索",
+                             "可搜索", "/", "/","/","/"]
+                }
+                df_3 = pd.DataFrame(data_3)
+                st.write("歌库csv参数介绍：")
+                st.dataframe(df_3)
+                st.text("填写标签列表中的知识图谱可搜索的参数")
+            elif tutorial_select == "功能使用":
+                st.markdown("### AI-Vtuber知识库定制器")
+                st.markdown("```streamlit run streamlit_agent.py ```")
+                st.markdown("### b站监听与主程序")
+                st.markdown("##### 启动b站监听")
+                st.markdown("```python blivedm_api.py ```")
+                st.markdown("##### 启动ai主播主程序")
+                st.markdown("```python main.py ```")
+
     elif page == "AI-Vtuber":
         markdown_text = """
         <div style="text-align:center;">
@@ -555,7 +602,7 @@ def main():
                         os.remove('template/template_upload.mp4')
                     st.success("临时视频文件已成功删除！")
                 st.text("请选择你要学习的视频:")
-                uploaded_file = st.file_uploader("上传视频文件", type=['mp4'])
+                uploaded_file = st.file_uploader("上传视频或音频文件", type=['mp4','wav'])
                 if uploaded_file:
                     # 保存上传的视频文件到 template 文件夹中
                     with open('template/template_upload.mp4', 'wb') as f:
