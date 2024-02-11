@@ -76,4 +76,20 @@ async def process_text_file(text, output_folder,AudioCount):
     # 使用FFmpeg转换为WAV文件
     subprocess.run(['ffmpeg', '-y', '-i', mp3_output_path, wav_output_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-
+def to_gpt_sovits_api(text,output_folder,AudioCount):
+    wav_output_path = os.path.join(output_folder, f'{AudioCount}.wav')
+    #url = "http://127.0.0.1:8080"
+    url = "http://127.0.0.1:9880"
+    params = {
+        "refer_wav_path": r"C:\Users\32873\Desktop\ai\tts\GPT-SoVITS-TTS\output\sanyueqi-撒娇.wav",
+        "text": text,
+        "text_language": "zh"
+    }
+    # 发送 GET 请求
+    response = requests.get(url, params)
+    # 检查响应状态码
+    if response.status_code == 200:
+        # 将音频流写入临时文件
+        with open(wav_output_path, "wb") as f:
+            f.write(response.content)
+        print("INFO 响应成功")

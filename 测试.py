@@ -7,6 +7,7 @@ import streamlit as st
 import chat_api
 import os
 import json
+import memory
 import study_for_memory
 import utils
 import make_song_n4j
@@ -129,15 +130,24 @@ def set_emotion(score):
         emotion_score = 100
     return emotion_state
 
-def chat_tgw(model,messages,zhipu_api_use):
+def chat_tgw(model,messages):
     from chat_api import create_chat_completion
-    return create_chat_completion(model, messages,zhipu_api_use)
+    return create_chat_completion(model, messages)
 
 def llm_response(query):
+    global role_name,role_sex,role_age
     keyword, score, result = study_for_memory.search_from_memory(query)
     if score == "None":
         score = 0
     emotion_state = set_emotion(score)
+    role_json = {
+        "角色名称": role_name,
+        "角色性别": role_sex,
+        "角色年龄": role_age,
+        "角色当前情绪": f"你当前的心情值为{emotion_score}(范围为[0-100])，正处于{emotion_state}状态",
+        "你需要扮演的角色设定": role_prompt,
+        "你之前的聊天记录:": memory.short_term_memory_window(query)
+    }
     if keyword != "None":
         chat_messages = [
             {
@@ -145,22 +155,22 @@ def llm_response(query):
                 "content": f"用户本次的问题:{query}。下面的内容是从你的知识库中查询出来的，请你根据对后面补充的信息进行筛选来回答本次用户的问题，禁止回答多余的内容:{result}"
             }
         ]
-        response = chat_tgw("chatglm3-6b", chat_messages, zhipu_api_use=True)
+        response = chat_tgw(role_language_model, chat_messages)
         chat_messages = [
             {
                 "role": "user",
-                "content": f"{role_prompt}接下来你需要扮演我设定的角色,本段设定你自己知道即可，不要向别人说出来。你当前的心情值为{emotion_score}(范围为[0-100])，正处于{emotion_state}状态，你来使用扮演角色的语气和心情状态来复述下面的内容:{response}"
+                "content": f"接下来你需要扮演我设定的角色,本段设定你自己知道即可，不要向别人说出来。{str(role_json)}你来使用扮演角色的语气和心情状态来复述下面的内容:{response}"
             }
         ]
-        response = chat_tgw("chatglm3-6b", chat_messages, zhipu_api_use=True)
+        response = chat_tgw(role_language_model, chat_messages)
     else:
         chat_messages = [
             {
                 "role": "user",
-                "content": f"你需要扮演的角色设定:{role_prompt}。接下来你需要扮演我设定的角色,本段设定你自己知道即可，不要向别人说出来。你当前的心情值为{emotion_score}(范围为[0-100])，正处于{emotion_state}状态，你来使用扮演角色的语气和心情状态来回答下面的问题:{query}"
+                "content": f"接下来你需要扮演我设定的角色,本段设定你自己知道即可，不要向别人说出来。{str(role_json)}你来使用扮演角色的语气和心情状态来回答下面的问题:{query}"
             }
         ]
-        response = chat_tgw("chatglm3-6b", chat_messages, zhipu_api_use=True)
+        response = chat_tgw(role_language_model, chat_messages)
     return response
 
 def query_search(query: str):
@@ -335,7 +345,7 @@ def main():
 
         st.markdown(markdown_text, unsafe_allow_html=True)
         st.markdown('---')
-        choice = st.selectbox("功能选择:", ["爬虫", "画画", "聊天", "翻唱","ai-agent"], index=0)
+        choice = st.selectbox("功能选择:", ["爬虫", "画画", "聊天", "翻唱", "ai-agent"], index=0)
         # 根据选择的功能显示不同的信息
         if choice == "爬虫":
             selected_option = st.selectbox('请选择一个选项：', ['网易云', '哔哩哔哩视频', '哔哩哔哩音频'])
@@ -777,7 +787,7 @@ def main():
                 save_json(messages)
             elif button3_clicked:
                 button_states['代理学习'] = True
-                messages['agent_study'] = chat_api.zhipu_api(chat_messages[0]["content"])
+                messages['agent_study'] = chat_api.zhipu_api(chat_messages)
                 save_json(messages)
             elif button4_clicked:
                 button_states['清空会话'] = True
@@ -815,6 +825,10 @@ if __name__ == '__main__':
     song_path = hps.songdatabase.song_path
     client = ZhipuAI(api_key=api_key)
     role_prompt = hps.ai_vtuber.setting
+    role_name = hps.ai_vtuber.name
+    role_sex = hps.ai_vtuber.sex
+    role_age = hps.ai_vtuber.age
+    role_language_model = hps.ai_vtuber.language_model
     vtuber_name = hps.ai_vtuber.name
     vtuber_sex = hps.ai_vtuber.sex
     vtuber_setting = hps.ai_vtuber.setting

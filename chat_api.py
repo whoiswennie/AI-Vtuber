@@ -15,15 +15,22 @@ file_lock = threading.Lock()
 hps = utils.get_hparams_from_file("configs/config.json")
 zhipu_key = hps.api_path.llm_api.zhipuai_key
 
-def create_chat_completion(model, messages,zhipu_api_use,use_stream=False):
-    if zhipu_api_use:
-        response = zhipu_api(messages[0]["content"])
+def create_chat_completion(llm_model, messages,use_stream=False):
+    '''
+
+    :param llm_model: 你选择的大语言模型【推荐智谱api，当前支持智谱api和本地部署的chatglm3-6b模型】
+    :param messages: [{"role":"","content":""},...]
+    :param use_stream: 是否采用流式响应，默认关闭
+    :return:
+    '''
+    if llm_model == "zhipu_api":
+        response = zhipu_api(messages)
         result = response.replace(r"\n", "")
         return result
-    else:
+    elif llm_model == "chatglm3-6b":
         base_url = "http://127.0.0.1:8000"  # 本地部署的地址,或者使用你访问模型的API地址
         data = {
-            "model": model, # 模型名称
+            "model": "chatglm3-6b", # 模型名称
             "messages": messages, # 会话历史
             "stream": use_stream, # 是否流式响应
             "max_tokens": 1011, # 最多生成字数
@@ -56,13 +63,11 @@ def create_chat_completion(model, messages,zhipu_api_use,use_stream=False):
             return None
 
 
-def zhipu_api(content):
+def zhipu_api(messages):
     client = ZhipuAI(api_key=zhipu_key)  # 填写您自己的APIKey
     response = client.chat.completions.create(
         model="glm-3-turbo",  # 填写需要调用的模型名称
-        messages=[
-            {"role": "user", "content": content}
-        ],
+        messages=messages,
     )
     #print(response.choices[0].message.content)
     return response.choices[0].message.content
@@ -99,8 +104,3 @@ def tool_database(content):
     result = response.choices[0].message.content
     #print(result)
     return content,result
-
-#send_file("dataset/converted_data.jsonl")
-# content,result = tool_database("任务是干什么？")
-# print("最终回复:",zhipu_api(f"本次用户的问题是：{content}，请你参考下面你的知识库来筛选有效信息来回答本次用户的问题：{result}"))
-
