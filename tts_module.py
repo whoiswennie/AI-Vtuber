@@ -78,8 +78,8 @@ async def process_text_file(text, output_folder,AudioCount):
 
 def to_gpt_sovits_api(text,output_folder,AudioCount):
     wav_output_path = os.path.join(output_folder, f'{AudioCount}.wav')
-    #url = "http://127.0.0.1:8080"
-    url = "http://127.0.0.1:9880"
+    url = "http://127.0.0.1:8080"
+    #url = "http://127.0.0.1:9880"
     params = {
         "refer_wav_path": r"C:\Users\32873\Desktop\ai\tts\GPT-SoVITS-TTS\output\sanyueqi-撒娇.wav",
         "text": text,

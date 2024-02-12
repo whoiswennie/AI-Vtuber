@@ -212,7 +212,14 @@ def get_session_state():
 
 # 保存 JSON 文件
 def save_json(data,filename="configs/messages.json"):
-    #{"input_text": "","query": "","web_search": "","agent_study": ""}
+    """
+
+    :param data:
+    :param filename:
+    :return:
+    {"input_text": "","query": "","web_search": "","agent_study": ""}
+    """
+
     old_messages = get_session_state()
     non_empty_keys = [key for key, value in data.items() if value is not None and value != '']
     print("messages:",data)
@@ -680,79 +687,137 @@ def main():
                         st.success("新知识储存完毕！")
 
             elif y1_select == "知识库管理":
-                # 读取CSV文件
-                df = pd.read_csv("csv/keyword_dict.csv", encoding="gbk")
-                # 创建侧边栏选项
-                display_option = st.sidebar.selectbox(
-                    '选择展示方式',
-                    ('关键词', '情绪值')
+                select_option = st.selectbox(
+                    "选择需要管理的内容",
+                    ("关键词词表","代理模式情绪影响因子")
                 )
-                # 选择展示方式为关键词
-                if display_option == '关键词':
-                    keyword = st.sidebar.selectbox('选择关键词', df['keyword'])
-                    selected_row = df[df['keyword'] == keyword]
-                    # 展示关键词的详情信息
-                    st.write(selected_row)
-                    # 展示关键词对应的 association 标签下的数据
-                    associations = selected_row['association'].iloc[0].split('，')
-                    for association in associations:
-                        st.write(association)
-                    # 选择具体的 association 数据
-                    selected_association = st.selectbox('选择 association 数据', associations)
-                    selected_row_association = selected_row[
-                        selected_row['association'].str.contains(selected_association)]
-                    # 获取文件路径
-                    file_path = f"chroma_database/database/{keyword}/{selected_association}.txt"
-                    if os.path.exists(file_path):
-                        # 读取并展示文件内容
-                        with open(file_path, 'r', encoding='utf-8') as file:
-                            file_content = file.read()
-                        t1 = st.text_area(f"{selected_association}",value=file_content,height=500)
-                        if file_content != t1:
-                            with open(file_path, 'w', encoding='utf-8') as file:
-                                file.write(t1)
-                            st.success("更新成功")
-                        folder_path = f"chroma_database/database/{keyword}"
-                        new_associtation_name = st.text_input(label="是否更改此条association的命名:")
-                        if new_associtation_name:
-                            manager = study_for_memory.KeywordAssociationManager("csv/keyword_dict.csv")
-                            manager.get_association(keyword)
-                            manager.delete_association(association_to_delete=selected_association)
-                            manager.add_association(new_association=new_associtation_name)
-                            file_path = os.path.join(folder_path, selected_association + ".txt")
-                            new_file_path = os.path.join(folder_path, new_associtation_name + ".txt")
-                            if os.path.exists(file_path):
-                                os.rename(file_path, new_file_path)
-                            st.success("词表已更新！")
-                        if st.button("删除此条association"):
-                            manager = study_for_memory.KeywordAssociationManager("csv/keyword_dict.csv")
-                            manager.get_association(keyword)
-                            manager.delete_association(association_to_delete=selected_association)
-                            file_path = os.path.join(folder_path, selected_association+".txt")
-                            if os.path.exists(file_path):
-                                os.remove(file_path)
-                            st.success("词表已删除！")
-                        if st.button("更新向量数据库"):
-                            if folder_path:
-                                delete_files_except_txt(folder_path)
-                                for filename in os.listdir(folder_path):
-                                    if filename.endswith(".txt"):
-                                        file_path = os.path.join(folder_path, filename)
-                                        chroma_database.make_db(file_path,folder_path,chunk_size=100)
-                                        st.success("向量库更新成功！")
-                            else:
-                                st.warning("请输入文件夹路径！")
+                if select_option == '关键词词表':
+                    # 读取CSV文件
+                    df = pd.read_csv("csv/keyword_dict.csv", encoding="gbk")
+                    # 创建侧边栏选项
+                    display_option = st.sidebar.selectbox(
+                        '选择展示方式',
+                        ('关键词', '情绪值')
+                    )
+                    # 选择展示方式为关键词
+                    if display_option == '关键词':
+                        keyword = st.sidebar.selectbox('选择关键词', df['keyword'])
+                        selected_row = df[df['keyword'] == keyword]
+                        # 展示关键词的详情信息
+                        st.write(selected_row)
+                        # 展示关键词对应的 association 标签下的数据
+                        associations = selected_row['association'].iloc[0].split('，')
+                        for association in associations:
+                            st.write(association)
+                        # 选择具体的 association 数据
+                        selected_association = st.selectbox('选择 association 数据', associations)
+                        selected_row_association = selected_row[
+                            selected_row['association'].str.contains(selected_association)]
+                        # 获取文件路径
+                        file_path = f"chroma_database/database/{keyword}/{selected_association}.txt"
+                        if os.path.exists(file_path):
+                            # 读取并展示文件内容
+                            with open(file_path, 'r', encoding='utf-8') as file:
+                                file_content = file.read()
+                            t1 = st.text_area(f"{selected_association}",value=file_content,height=500)
+                            if file_content != t1:
+                                with open(file_path, 'w', encoding='utf-8') as file:
+                                    file.write(t1)
+                                st.success("更新成功")
+                            folder_path = f"chroma_database/database/{keyword}"
+                            new_associtation_name = st.text_input(label="是否更改此条association的命名:")
+                            if new_associtation_name:
+                                manager = study_for_memory.KeywordAssociationManager("csv/keyword_dict.csv")
+                                manager.get_association(keyword)
+                                manager.delete_association(association_to_delete=selected_association)
+                                manager.add_association(new_association=new_associtation_name)
+                                file_path = os.path.join(folder_path, selected_association + ".txt")
+                                new_file_path = os.path.join(folder_path, new_associtation_name + ".txt")
+                                if os.path.exists(file_path):
+                                    os.rename(file_path, new_file_path)
+                                st.success("词表已更新！")
+                            if st.button("删除此条association"):
+                                manager = study_for_memory.KeywordAssociationManager("csv/keyword_dict.csv")
+                                manager.get_association(keyword)
+                                manager.delete_association(association_to_delete=selected_association)
+                                file_path = os.path.join(folder_path, selected_association+".txt")
+                                if os.path.exists(file_path):
+                                    os.remove(file_path)
+                                st.success("词表已删除！")
+                            if st.button("更新向量数据库"):
+                                if folder_path:
+                                    delete_files_except_txt(folder_path)
+                                    for filename in os.listdir(folder_path):
+                                        if filename.endswith(".txt"):
+                                            file_path = os.path.join(folder_path, filename)
+                                            chroma_database.make_db(file_path,folder_path,chunk_size=100)
+                                            st.success("向量库更新成功！")
+                                else:
+                                    st.warning("请输入文件夹路径！")
+                        else:
+                            st.text_area("提示:",value=f"文件 '{file_path}' 不存在")
+                    # 选择展示方式为情绪值
+                    elif display_option == '情绪值':
+                        emotion = st.sidebar.selectbox('选择情绪值', df['emotion'].unique())
+                        selected_rows = df[df['emotion'] == emotion]
+                        # 展示情绪值对应的数据
+                        st.write(selected_rows)
+                    # 在侧边栏中添加按钮，用于按需显示更多信息
+                    if st.sidebar.button('显示更多信息'):
+                        st.write(df)
+                elif select_option == "代理模式情绪影响因子":
+                    st.write("---")
+                    song_dict_data, _ = get_song_dict()
+                    # 初始化 session_state 字典，用于保存用户选择的值
+                    if 'selected_values' not in st.session_state:
+                        st.session_state.selected_values = {"0": [], "1": [], "2": [], "3": [], "4": []}
+                    json_file = "configs/emotional_influencing_factors.json"
+                    # 如果JSON文件存在，且不为空，读取内容并解析为字典
+                    if os.path.exists(json_file) and os.path.getsize(json_file) > 0:
+                        with open(json_file, "r", encoding="utf-8") as f:
+                            st.session_state.selected_values = json.load(f)
+                    # 单选框选择情绪
+                    emotion = st.radio("选择情绪：", options=["all","0", "1", "2", "3", "4"])
+                    # 下拉框选择字典中的键
+                    selected_key = st.selectbox("选择字典中的键：", options=list(song_dict_data.keys()))
+                    # 根据情绪和已选择的值，更新可供选择的值列表
+                    if emotion != "all":
+                        # 获取之前情绪已选择的值
+                        previous_selected_values = []
+                        for i in range(int(emotion)):
+                            previous_selected_values.extend(st.session_state.selected_values[str(i)])
+                        # 获取当前情绪未选择的值
+                        remaining_values = [value for value in song_dict_data[selected_key] if
+                                            value not in previous_selected_values]
+                        # 获取当前情绪已选择的值，但需要去除不在 remaining_values 中的值
+                        current_selected_values = [value for value in st.session_state.selected_values[emotion] if
+                                                   value in remaining_values]
+                        # 更新选择框的选项
+                        selected_values = st.multiselect("选择值：", options=remaining_values,
+                                                         default=current_selected_values)
                     else:
-                        st.text_area("提示:",value=f"文件 '{file_path}' 不存在")
-                # 选择展示方式为情绪值
-                elif display_option == '情绪值':
-                    emotion = st.sidebar.selectbox('选择情绪值', df['emotion'].unique())
-                    selected_rows = df[df['emotion'] == emotion]
-                    # 展示情绪值对应的数据
-                    st.write(selected_rows)
-                # 在侧边栏中添加按钮，用于按需显示更多信息
-                if st.sidebar.button('显示更多信息'):
-                    st.write(df)
+                        # 如果是情绪为all，则直接显示所有值供选择
+                        selected_values = st.multiselect("选择值：", options=song_dict_data[selected_key])
+                        return
+                    # 显示已选择的值，并提供删除选项
+                    st.write("已保存的选项：")
+                    saved_options = st.multiselect("选择要删除的选项：", options=st.session_state.selected_values[emotion],
+                                                   default=[])
+                    if st.button("删除"):
+                        st.session_state.selected_values[emotion] = [value for value in
+                                                                     st.session_state.selected_values[emotion] if
+                                                                     value not in saved_options]
+                        with open(json_file, "w", encoding="utf-8") as f:
+                            json.dump(st.session_state.selected_values, f, indent=4)
+                    # 保存按钮
+                    if st.button("保存"):
+                        # 更新字典中对应键的值
+                        st.session_state.selected_values[emotion] += selected_values
+                        # 去除重复元素
+                        st.session_state.selected_values[emotion] = list(set(st.session_state.selected_values[emotion]))
+                        # 写回到JSON文件，并格式化为可读性更好的形式
+                        with open(json_file, "w", encoding="utf-8") as f:
+                            json.dump(st.session_state.selected_values, f, indent=4)
 
         elif y_select == "代理学习":
             # 添加一个标题

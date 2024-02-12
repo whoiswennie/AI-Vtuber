@@ -1,13 +1,15 @@
 {
     "ai_vtuber": {
-        "if_agent": 0,
+        "if_agent": 1,
         "prompt": "",
         "name": "",
         "setting": "",
         "sex": "",
+        "age": 17,
         "emotion": "",
-        "plan_to_do": ""
-
+        "plan_to_do": "",
+        "language_model": "",
+        "speech_model": ""
     },
     "bilibili": {
         "blivedm": {
@@ -34,11 +36,11 @@
         "AudioCount": 0
     },
     "songdatabase": {
-        "song_csv_path": "csv/¸è¿â.csv",
+        "song_csv_path": "csv/ï¿½ï¿½ï¿½.csv",
         "song_dict_path": "configs/song_dict.json",
-        "song_path": "C:/Users/32873/Desktop/»Ã½´µÄ¸è¿â",
+        "song_path": "C:/Users/32873/Desktop/ï¿½Ã½ï¿½ï¿½Ä¸ï¿½ï¿½",
         "similarity_threshold": 67,
-        "search_key": "¸èÃû"
+        "search_key": "ï¿½ï¿½ï¿½ï¿½"
     },
     "api_path": {
         "so_vits_svc": {
@@ -64,6 +66,6 @@
         }
     },
     "songlist": [
-        "°Ñ»ØÒäÆ´ºÃ¸øÄã"
+        "ï¿½Ñ»ï¿½ï¿½ï¿½Æ´ï¿½Ã¸ï¿½ï¿½ï¿½"
     ]
 }

@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import json
 import os
+import random
 import time
 import queue
 import shutil
@@ -10,8 +11,10 @@ import threading
 import make_song_n4j
 import svc_api_request
 import tts_module
+import memory
 import study_for_memory
 import spleeter_to_svc
+import plan_agency
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from tool.search_for_song import search_in_wy, search_bilibili
 from tool.send_to_web_captions_printer import send_to_web_captions_printer
@@ -41,7 +44,13 @@ danmu_count = 0
 
 hps = utils.get_hparams_from_file('configs/config.json')
 role_prompt = hps.ai_vtuber.setting
+role_name = hps.ai_vtuber.name
+role_sex = hps.ai_vtuber.sex
+role_age = hps.ai_vtuber.age
 emotion_score = hps.ai_vtuber.emotion
+role_language_model = hps.ai_vtuber.language_model
+role_speech_model = hps.ai_vtuber.speech_model
+if_agent = hps.ai_vtuber.if_agent
 is_ai_ready = hps.bilibili.is_ai_ready
 is_tts_ready = hps.bilibili.is_tts_ready
 is_tts_play_ready = hps.bilibili.is_tts_play_ready
@@ -56,6 +65,11 @@ AudioPlay = hps.bilibili.AudioPlay
 
 sched1 = AsyncIOScheduler(timezone="Asia/Shanghai")
 
+with open("configs/short_term_memory.json", "r", encoding="utf-8") as f:
+    data = json.load(f)
+data["short_term_memory"] = []
+with open("configs/short_term_memory.json", "w", encoding="utf-8") as f:
+    json.dump(data, f, indent=4, ensure_ascii=False)
 # 文件夹初始化
 if os.path.exists(os.path.join(project_root, "song_output")):
     shutil.rmtree(os.path.join(project_root, "song_output"))
@@ -68,7 +82,7 @@ os.makedirs(os.path.join(project_root, "logs/danmu"), exist_ok=True)
 
 def Classifiers(content):
     global songlist,song_lst
-    if content[0:3] == "[幻]":
+    if content[0:3] == "#聊天":
         return -1
     elif content[0:3] == "#画画":
         with file_lock:
@@ -264,6 +278,14 @@ def ai_response():
     if score == "None":
         score = 0
     emotion_state = set_emotion(score)
+    role_json = {
+        "角色名称": role_name,
+        "角色性别": role_sex,
+        "角色年龄": role_age,
+        "角色当前情绪": f"你当前的心情值为{emotion_score}(范围为[0-100])，正处于{emotion_state}状态",
+        "你需要扮演的角色设定": role_prompt,
+        "你之前的聊天记录:": memory.short_term_memory_window(prompt)
+    }
     if keyword != "None":
         chat_messages = [
             {
@@ -271,40 +293,46 @@ def ai_response():
                 "content": f"用户本次的问题:{prompt}。下面的内容是从你的知识库中查询出来的，请你根据对后面补充的信息进行筛选来回答本次用户的问题，禁止回答多余的内容:{result}"
             }
         ]
-        response = chat_tgw("chatglm3-6b",chat_messages,zhipu_api_use=True)
+        response = chat_tgw(role_language_model,chat_messages)
         chat_messages = [
             {
-                "role": "user", "content": f"{role_prompt}接下来你需要扮演我设定的角色,本段设定你自己知道即可，不要向别人说出来。你当前的心情值为{emotion_score}(范围为[0-100])，正处于{emotion_state}状态，你来使用扮演角色的语气和心情状态来复述下面的内容:{response}"
+                "role": "user",
+                "content": f"接下来你需要扮演我设定的角色,本段设定你自己知道即可，不要向别人说出来。{str(role_json)}你来使用扮演角色的语气和心情状态来复述下面的内容:{response}"
             }
         ]
-        response = chat_tgw("chatglm3-6b", chat_messages, zhipu_api_use=True)
+        response = chat_tgw(role_language_model, chat_messages)
     else:
         chat_messages = [
             {
                 "role": "user",
-                "content": f"你需要扮演的角色设定:{role_prompt}。接下来你需要扮演我设定的角色,本段设定你自己知道即可，不要向别人说出来。你当前的心情值为{emotion_score}(范围为[0-100])，正处于{emotion_state}状态，你来使用扮演角色的语气和心情状态来回答下面的问题:{prompt}"
+                "content": f"接下来你需要扮演我设定的角色,本段设定你自己知道即可，不要向别人说出来。{str(role_json)}你来使用扮演角色的语气和心情状态来回答下面的问题:{prompt}"
             }
         ]
-        response = chat_tgw("chatglm3-6b", chat_messages, zhipu_api_use=True)
+        response = chat_tgw(role_language_model, chat_messages)
     answer = f"回复{user_name}：{response}"
-    # 加入回复列表，并且后续合成语音
     AnswerList.put(f"{prompt}" + "," + answer)
     current_question_count = QuestionList.qsize()
-    print(f"\033[31m[AI-Vtuber]\033[0m{answer}")  # 打印AI回复信息
+    print(f"\033[31m[AI-Vtuber]\033[0m{answer}")
     print(
         f"\033[32mSystem>>\033[0m[{user_name}]的回复已存入队列，当前剩余问题数:{current_question_count}"
     )
     time1 = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with file_lock:
-        with open("./logs/logs.txt", "a", encoding="utf-8") as f:  # 将问答写入logs
+        with open("./logs/logs.txt", "a", encoding="utf-8") as f:
             f.write(
                 f"{ques}\n[{time1}] {answer}\n========================================================\n"
             )
+        with open("configs/short_term_memory.json","r",encoding="utf-8") as f:
+            data = json.load(f)
+        data["short_term_memory"].append({"role":"user","content":ques})
+        data["short_term_memory"].append({"role":"assistant","content":answer+time1})
+        with open("configs/short_term_memory.json","w",encoding="utf-8") as f:
+            json.dump(data, f, indent=4, ensure_ascii=False)
     is_ai_ready = 1
 
-def chat_tgw(model,messages,zhipu_api_use):
+def chat_tgw(model,messages):
     from chat_api import create_chat_completion
-    return create_chat_completion(model, messages,zhipu_api_use)
+    return create_chat_completion(model, messages)
 
 # tts线程
 async def check_tts():
@@ -321,23 +349,28 @@ async def check_tts():
 
 def tts_main(text):
     # 创建输出文件夹
-    output_folder = f"./song_output/edge-tts"
+    output_folder = f"./song_output/tts"
     os.makedirs(output_folder, exist_ok=True)
     global AudioCount,is_tts_ready
-    # please = int(input("1.bert-vits   2.edge-tts"))
-    please = 2
-    if please == 2:
+    please = role_speech_model
+    if please == "edge-tts":
         asyncio.run(tts_module.process_text_file(text, os.path.join(project_root, output_folder),AudioCount))
         # svc
-        svc_api_request.request_api(os.path.join(project_root, f"song_output/edge-tts/{AudioCount}.wav"),AudioCount)
+        svc_api_request.request_api(os.path.join(project_root, f"song_output/tts/{AudioCount}.wav"),AudioCount)
         print("处理完成！")
         queue_contents = list(tts_playList.queue)
         if AudioCount not in queue_contents:
             tts_playList.put(AudioCount)
         is_tts_ready = 1
         AudioCount += 1
-
-    else:
+    elif please == "gpt-sovits":
+        tts_module.to_gpt_sovits_api(text, os.path.join(project_root,"song_output"),AudioCount)
+        queue_contents = list(tts_playList.queue)
+        if AudioCount not in queue_contents:
+            tts_playList.put(AudioCount)
+        is_tts_ready = 1
+        AudioCount += 1
+    elif please == "bert-vits2":
         # 分割文本为多个片段
         segments = []
         max_segment_length = 100  # 每个片段的最大长度
@@ -432,6 +465,41 @@ async def check_web_captions_printer():
             time.sleep(3)
             is_web_captions_printer_ready = 1
 
+async def agent_to_do():
+    global if_agent,is_ai_ready,is_tts_ready,is_tts_play_ready,is_song_play_ready,is_song_cover_ready,emotion_score
+    if if_agent and is_tts_play_ready and is_song_play_ready and is_song_cover_ready and is_ai_ready and is_tts_ready:
+        if_agent = 0
+        random_agent = random.randint(0, 1)
+        #random_agent = 0
+        if random_agent == 0:
+            is_ai_ready = 0
+            def call_agent_talk_main():
+                global if_agent,is_ai_ready
+                answer = plan_agency.agent_talk_main(role_prompt,role_name,role_sex,role_age,emotion_score,role_language_model)
+                AnswerList.put(answer)
+                print(f"\033[31m[AI-Vtuber]\033[0m{answer}")
+                time1 = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                with file_lock:
+                    with open("./logs/logs.txt", "a", encoding="utf-8") as f:
+                        f.write(
+                            f"[{time1}][agent-talk] {answer}\n========================================================\n"
+                        )
+                    with open("configs/short_term_memory.json", "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    data["short_term_memory"].append({"role": "assistant", "content": answer + time1})
+                    with open("configs/short_term_memory.json", "w", encoding="utf-8") as f:
+                        json.dump(data, f, indent=4, ensure_ascii=False)
+                if_agent,is_ai_ready = 1,1
+            tts_thread = threading.Thread(target=call_agent_talk_main)
+            tts_thread.start()
+        elif random_agent == 1:
+            def call_agent_song_main(song_lst, song_playList):
+                global if_agent
+                result,if_agent = plan_agency.agent_song_main(emotion_score)
+                song_lst.put(result)
+                song_playList.put(result)
+            tts_thread = threading.Thread(target=call_agent_song_main, args=(song_lst, song_playList))
+            tts_thread.start()
 
 async def main():
     output_dir = "song_output"
@@ -445,6 +513,7 @@ async def main():
     sched1.add_job(check_song_search, "interval", seconds=1, id="song_search", max_instances=4)
     sched1.add_job(check_web_captions_printer, "interval", seconds=1, id="web_captions_printer", max_instances=4)
     sched1.add_job(check_answer, "interval", seconds=1, id="llm_answer", max_instances=4)
+    sched1.add_job(agent_to_do, "interval", seconds=20, id="agent_to_do", max_instances=1)
 
     # 启动调度器
     sched1.start()
