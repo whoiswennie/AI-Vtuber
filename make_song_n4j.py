@@ -57,6 +57,12 @@ class neo4j_songdatabase(object):
         return data_dict
 
     def find_matching_keywords_with_similarity(self,user_question,data_dict):
+        """
+        这种查询速度有点过于慢了，以后换一种匹配方式。
+        :param user_question:
+        :param data_dict:
+        :return:
+        """
         # 存储匹配的结果
         matching_results = {}
         # 遍历字典中的每个键值对
@@ -79,6 +85,11 @@ class neo4j_songdatabase(object):
         return matching_results
 
     def reset(self,song_csv_path)-> bool:
+        '''
+        更新图数据库
+        :param song_csv_path:
+        :return:
+        '''
         self.find_node()
         return reset(self.url,self.user,self.password,song_csv_path)
 
@@ -114,13 +125,18 @@ class neo4j_songdatabase(object):
 
 
 def get_duration_ffmpeg(file_path):
+    """
+    获取音频的时长
+    :param file_path:
+    :return:
+    """
     try:
         probe = ffmpeg.probe(file_path)
         stream = next((stream for stream in probe['streams'] if stream['codec_type'] == 'audio'), None)
         duration = float(stream['duration'])
         return duration
     except ffmpeg._run.Error as e:
-        print("该歌曲需要vip权限。")
+        print("该歌曲需要vip权限或音频损坏。")
 
 
 

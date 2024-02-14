@@ -7,6 +7,9 @@
         "sex": "",
         "age": 17,
         "emotion": "",
+        "favorite_things": {
+            "喜爱的音乐": []
+        },
         "plan_to_do": "",
         "language_model": "",
         "speech_model": ""
@@ -38,7 +41,7 @@
     "songdatabase": {
         "song_csv_path": "csv/���.csv",
         "song_dict_path": "configs/song_dict.json",
-        "song_path": "C:/Users/32873/Desktop/�ý��ĸ��",
+        "song_path": "",
         "similarity_threshold": 67,
         "search_key": "����"
     },
@@ -49,7 +52,23 @@
             "spk": "huan",
             "wav_format": "wav"
         },
-        "bert_vits2": {},
+        "bert_vits2": {
+            "url": "",
+            "speaker": "",
+            "sdp_ratio": 0.2,
+            "noise": 0.5,
+            "noisew": 0.6,
+            "length": 1.2,
+            "language": "",
+            "format": ""
+        },
+        "gpt_sovits": {
+            "url": "",
+            "refer_wav_path": "",
+            "prompt_text": "",
+            "prompt_language": "",
+            "text_language": ""
+        },
         "llm_api": {
             "zhipuai_key": ""
         },
@@ -65,7 +84,5 @@
             "port": "http://127.0.0.1:5500"
         }
     },
-    "songlist": [
-        "�ѻ���ƴ�ø���"
-    ]
+    "songlist": []
 }

@@ -4,55 +4,51 @@ import edge_tts
 import wave
 import subprocess
 import os
+
+import utils
+
 project_root = os.path.dirname(os.path.abspath(__file__))
 file_lock = threading.Lock()
 
 def merge_audio_files(output_path, *input_paths):
-    # 打开输出文件
+    """
+    :param output_path: 输出文件路径
+    :param input_paths: 输入文件夹的所有音频片段
+    """
     output_file = wave.open(output_path, 'wb')
-
-    # 打开第一个输入文件并获取参数
     with wave.open(input_paths[0], 'rb') as input_file:
         output_file.setparams(input_file.getparams())
-
-        # 写入第一个输入文件的数据
         output_file.writeframes(input_file.readframes(input_file.getnframes()))
-
-    # 逐个打开其他输入文件并写入输出文件
     for input_path in input_paths[1:]:
         with file_lock:
             with wave.open(input_path, 'rb') as input_file:
-                # 确保输入文件参数与输出文件参数相同
                 if input_file.getparams() != output_file.getparams():
                     raise ValueError("所有输入文件的参数必须相同")
-
-                # 追加输入文件的数据
                 output_file.writeframes(input_file.readframes(input_file.getnframes()))
-
-    # 关闭输出文件
     output_file.close()
 
 
 def bert_vits2_api(text, output_path):
-    # 设置Flask应用的URL
-    flask_url = "http://127.0.0.1:5000"  # 请替换为你的Flask应用的URL
-    # 提供的参数，根据你的需求进行设置
+    '''
+
+    :param text: 需要合成的文本
+    :param output_path: 合成音频的保存路径
+
+    '''
+    hps = utils.get_hparams_from_file("configs/config.json")
+    flask_url = hps.api_path.bert_vits2.url
     params = {
-        "speaker": "huan",
+        "speaker": hps.api_path.bert_vits2.speaker,
         "text": text,
-        "sdp_ratio": 0.2,
-        "noise": 0.5,
-        "noisew": 0.6,
-        "length": 1.2,
-        "language": "ZH",
-        "format": "wav",
+        "sdp_ratio": hps.api_path.bert_vits2.sdp_ratio,
+        "noise": hps.api_path.bert_vits2.noise,
+        "noisew": hps.api_path.bert_vits2.noisew,
+        "length": hps.api_path.bert_vits2.length,
+        "language": hps.api_path.bert_vits2.language,
+        "format": hps.api_path.bert_vits2.format,
     }
-
-    # 发送GET请求到Flask应用
     response = requests.get(f"{flask_url}/", params=params)
-
     if response.status_code == 200:
-        # 从响应中获取音频数据并保存到文件
         audio_data = response.content
         with file_lock:
             with open(output_path+"\output.wav", "wb") as audio_file:
@@ -63,33 +59,35 @@ def bert_vits2_api(text, output_path):
         print("响应内容：", response.text)
 
 async def process_text_file(text, output_folder,AudioCount):
+    '''
+    将edge-tts合成的mp3文件转换成wav格式，方便so-vits-svc进行转换
+    :param text: 需要edge-tts合成的文本
+    :param output_folder:
+    :param AudioCount: 记录正在合成第几个音频
+
+    '''
     voice = "zh-CN-XiaoyiNeural"
     rate = "-4%"
     volume = "+0%"
     mp3_output_path = os.path.join(output_folder, f'{AudioCount}.mp3')
     wav_output_path = os.path.join(output_folder, f'{AudioCount}.wav')
-
-    # 使用edge-tts生成MP3文件
     tts = edge_tts.Communicate(text=text, voice=voice, rate=rate, volume=volume)
     await tts.save(mp3_output_path)
-
-    # 使用FFmpeg转换为WAV文件
     subprocess.run(['ffmpeg', '-y', '-i', mp3_output_path, wav_output_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 def to_gpt_sovits_api(text,output_folder,AudioCount):
+    hps = utils.get_hparams_from_file("configs/config.json")
     wav_output_path = os.path.join(output_folder, f'{AudioCount}.wav')
-    url = "http://127.0.0.1:8080"
-    #url = "http://127.0.0.1:9880"
+    url = hps.api_path.gpt_sovits.url
     params = {
-        "refer_wav_path": r"C:\Users\32873\Desktop\ai\tts\GPT-SoVITS-TTS\output\sanyueqi-撒娇.wav",
+        "refer_wav_path": hps.api_path.gpt_sovits.refer_wav_path,
+        "prompt_text": hps.api_path.gpt_sovits.prompt_text,
+        "prompt_language": hps.api_path.gpt_sovits.prompt_language,
         "text": text,
-        "text_language": "zh"
+        "text_language": hps.api_path.gpt_sovits.text_language
     }
-    # 发送 GET 请求
     response = requests.get(url, params)
-    # 检查响应状态码
     if response.status_code == 200:
-        # 将音频流写入临时文件
         with open(wav_output_path, "wb") as f:
             f.write(response.content)
         print("INFO 响应成功")

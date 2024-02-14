@@ -8,6 +8,11 @@ import utils
 
 
 def sing_for_svc(song_name):
+    """
+    之前是使用spleeter进行人声分离的，现在已经替换为uvr5模型
+    :param song_name:
+    :return:
+    """
     hps = utils.get_hparams_from_file("configs/config.json")
     selected_model = hps.api_path.uvr5.model
     # 构建完整的命令
@@ -33,6 +38,13 @@ def sing_for_svc(song_name):
     return output_file
 
 def to_uvr5(audio_path,save_path,model_path):
+    """
+    使用uvr5进行人声分离。
+    :param audio_path:
+    :param save_path:
+    :param model_path:
+    :return:
+    """
     import inference_demo as uvr5
     uvr5.vocal_separation(audio_path,save_path,model_path)
 
@@ -71,19 +83,15 @@ def find_wav(folder_path="download"):
 
 
 if __name__ == '__main__':
-    # 创建解析器对象
     parser = argparse.ArgumentParser(description='Process audio separation parameters')
 
-    # 添加命令行参数
     parser.add_argument('-ap', '--audio_path', type=str, help='Path to the audio file')
     parser.add_argument('-sp', '--save_path', type=str, help='Path to save the separated audio file')
     parser.add_argument('-mp', '--model_path', type=str, default='./models/Main_Models/2_HP-UVR.pth',
                         help='Path to the model file')
 
-    # 解析命令行参数
     args = parser.parse_args()
 
-    # 获取解析后的参数值
     audio_path = args.audio_path
     save_path = args.save_path
     model_path = args.model_path

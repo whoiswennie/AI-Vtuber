@@ -15,29 +15,37 @@ embedding_model_dict = {
 }
 
 EMBEDDING_MODEL = "gte-base-zh"
-# 初始化 hugginFace 的 embeddings 对象
 embeddings = HuggingFaceEmbeddings(model_name=embedding_model_dict[EMBEDDING_MODEL], )
 embeddings.client = sentence_transformers.SentenceTransformer(
     embeddings.model_name, device='cuda')
 
 def make_db(text_path,persist_directory,chunk_size=500):
-    # 读取原始文档
+    '''
+
+    :param text_path: 需要转换向量的文档路径
+    :param persist_directory: 向量数据库持久化存储路径
+    :param chunk_size: 文档切片长度
+
+    '''
     raw_documents_logs = TextLoader(text_path, encoding='utf-8').load()
-    # 分割文档
     text_splitter = CharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=0)
     documents_sanguo = text_splitter.split_documents(raw_documents_logs)
     documents = documents_sanguo
     print("documents nums:", documents.__len__())
-    # 生成向量（embedding）
     db = Chroma.from_documents(documents, embedding=embeddings,persist_directory=persist_directory)
-    # 持久化
     db.persist()
 
+
 def search_in_db(persist_directory,query,k_lin=2):
-    # 检索
+    '''
+
+    :param persist_directory: 需要进行搜索的向量数据库路径
+    :param query: 你的问题
+    :param k_lin: 查询最近的k个邻居
+    :return: 返回这k个最相似的邻居
+    '''
     db = Chroma(persist_directory=persist_directory, embedding_function=embeddings)
     docs = db.similarity_search(query, k=k_lin)
-    # 打印结果
     result = ""
     for doc in docs:
         # print("===")
