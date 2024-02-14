@@ -523,6 +523,9 @@ def main():
 
     elif page == "歌库":
         st.title("歌库")
+        if not os.path.exists("configs/song_dict.json"):
+            a = make_song_n4j.neo4j_songdatabase("configs/config.json")
+            a.reset("csv/歌库.csv")
         song_data_dict, a = get_song_dict()
         if st.button("更新图数据库:"):
             a.reset("csv/歌库.csv")
