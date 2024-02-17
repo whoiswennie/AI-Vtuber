@@ -48,6 +48,7 @@ role_name = hps.ai_vtuber.name
 role_sex = hps.ai_vtuber.sex
 role_age = hps.ai_vtuber.age
 emotion_score = hps.ai_vtuber.emotion
+role_favorite_things = hps.ai_vtuber.favorite_things
 role_language_model = hps.ai_vtuber.language_model
 role_speech_model = hps.ai_vtuber.speech_model
 if_agent = hps.ai_vtuber.if_agent
@@ -81,6 +82,20 @@ os.makedirs(os.path.join(project_root, "logs/danmu"), exist_ok=True)
 
 
 def Classifiers(content):
+    """
+    分类器:会根据弹幕的内容进行不同功能的使用
+    #聊天:返回值为-1，表示为聊天任务
+    #画画:返回值为1，表示为正常的功能调用，后面跟上提示词，对接sd-api
+    #点歌:返回值为1，表示为正常的功能调用，拥有#点歌0+歌曲和#点歌1+bv号两种点歌方式
+    #翻唱:返回值为1，表示为正常的功能调用，使用方式为先输入#翻唱获取翻唱列表，再输入#翻唱+序号来翻唱对应的歌
+    #唱歌:返回值为1，表示为正常的功能调用，需要配合#命令来使用。#唱歌+你想搜索的音乐特征（为歌库.csv中储存的第一行标签，只要是你填写过的一般都可以。）
+    #命令:返回值为1，表示为正常的功能调用，需要配合#唱歌来使用。用来选择#唱歌中搜索到的具体音乐。可以选择单选，也可以多选如:#序号0，1，3，4，7-16，18
+    #复读:返回值为1，表示为正常的功能调用，复读后面的内容，一般用来测试语音模块。
+    #播放列表:返回值为1，表示为正常的功能调用，可以打印之后将要播放的歌曲名称（包括点歌和唱歌两个功能的），不过不能显示正在播放的歌名。
+    其余弹幕，返回值为0，会被过滤掉。
+    :param content:
+    :return:
+    """
     global songlist,song_lst
     if content[0:3] == "#聊天":
         return -1
@@ -131,7 +146,8 @@ def Classifiers(content):
             spleeter_to_svc.sing_for_svc(f"{find_wav_lst[int(content[3:])]}")
             song_search_playList.queue.insert(0, "output")
             song_lst.queue.insert(0, "output")
-        find_wav_lst = spleeter_to_svc.find_wav()
+        else:
+            find_wav_lst = spleeter_to_svc.find_wav()
         return 1
 
     elif content[0:3] == "#唱歌":
@@ -206,12 +222,11 @@ def Classifiers(content):
     else:
         return 0
 
-# 获取b站直播间数据
+# 获取b站直播间数据（当前该模块只能获取弹幕，获取的方式也比较原始，以后会支持更多的内容）
 async def blivedm_api_get():
     global QuestionName,QuestionList,danmu_count
     danmu_file_path = f'logs/danmu/{danmu_count}.json'
     if os.path.exists(danmu_file_path):
-        # 文件存在，读取内容
         with open(danmu_file_path, 'r',encoding="utf-8") as file:
             danmu_data = json.load(file)
         user_name = danmu_data.get('user_name', '')
@@ -247,17 +262,22 @@ async def check_answer():
         answers_thread.start()
 
 def set_emotion(score):
+    '''
+
+    :param score: 本次需要变化的情绪分数
+    :return: 变换后情绪值对应的情绪阶段
+    '''
     global emotion_score,emotion_state
     emotion_score += score
-    if emotion_score >= 0 and emotion_score < 20:
+    if 0 <= emotion_score < 20:
         emotion_state = "悲伤"
-    elif emotion_score >= 20 and emotion_score < 40:
+    elif 20 <= emotion_score < 40:
         emotion_state = "焦虑"
-    elif emotion_score >= 40 and emotion_score < 60:
+    elif 40 <= emotion_score < 60:
         emotion_state = "平静"
-    elif emotion_score >= 60 and emotion_score < 80:
+    elif 60 <= emotion_score < 80:
         emotion_state = "开心"
-    elif emotion_score >= 80 and emotion_score <= 100:
+    elif 80 <= emotion_score <= 100:
         emotion_state = "激动"
     elif emotion_score < 0:
         emotion_score = 0
@@ -267,7 +287,7 @@ def set_emotion(score):
 
 def ai_response():
     """
-    从问题队列中提取一条，生成回复并存入回复队列中
+    提取问题中是否存在会影响到主播情绪变化的关键词，获取该关键词的信息并计算变换后的情绪值。提供一个角色信息字典给llm参考并回复，将得到的回复内容进行临时存储并存入语音合成队列
     :return:
     """
     global is_ai_ready,emotion_state,emotion_score
@@ -331,6 +351,12 @@ def ai_response():
     is_ai_ready = 1
 
 def chat_tgw(model,messages):
+    '''
+
+    :param model: 需要调用的llm
+    :param messages: openai标准的消息会话
+    :return: llm回复的内容，type:str
+    '''
     from chat_api import create_chat_completion
     return create_chat_completion(model, messages)
 
@@ -348,6 +374,14 @@ async def check_tts():
         tts_thread.start()
 
 def tts_main(text):
+    '''
+    当前支持
+    1.edge-tts -> so-vits-svc
+    2.gpt-sovits
+    3.bert-vits2
+    :param text: 需要合成的文本
+
+    '''
     # 创建输出文件夹
     output_folder = f"./song_output/tts"
     os.makedirs(output_folder, exist_ok=True)
@@ -397,9 +431,11 @@ def tts_main(text):
             shutil.rmtree(segment_folder)
 
         print("处理完成！")
+    web_captions_printer.put(text)
+
 async def check_tts_play():
     """
-    若已经播放完毕且播放列表中有数据 则创建一个播放音频的线程
+    若已经播放完毕且播放列表中有数据 则创建一个播放tts音频的线程
     :return:
     """
     global is_tts_play_ready,is_song_play_ready
@@ -409,9 +445,14 @@ async def check_tts_play():
         tts_thread.start()
 
 def mpv_play(path):
+    """
+    播放tts音频
+    :param path: 音频路径
+    :return:
+    """
     duration = make_song_n4j.get_duration_ffmpeg(path)
     global is_tts_play_ready
-    # end：播放多少秒结束  volume：音量，最大100，最小0
+    # end:播放多少秒结束  volume：音量，最大100，最小0
     subprocess.run(
         f'mpv.exe -vo null --volume=100 --start=0 --end={duration} "{path}" 1>nul',
         shell=False,
@@ -421,21 +462,27 @@ def mpv_play(path):
 
 # 点歌线程
 async def check_song_search():
+    """
+    若已经点歌播放完毕且点歌列表中有数据 则创建一个播放点歌歌曲的线程
+    :return:
+    """
     global is_song_play_ready,is_tts_play_ready,is_song_cover_ready
     if not song_search_playList.empty() and is_song_play_ready and is_tts_play_ready:
         is_song_play_ready = 0
         song_name = song_search_playList.get()
         if song_name == "output":
             is_song_cover_ready = 0
-        else:
-            is_song_cover_ready = 1
         tts_thread = threading.Thread(
             target=lambda: song_play(f"download/{song_name}.wav"), daemon=True)
         tts_thread.start()
 
 # 唱歌线程
 async def check_song_play():
-    global is_song_play_ready,is_tts_play_ready
+    """
+    若音乐已经播放完毕且播放列表中有数据，且点歌线程和语音播放线程为空，则创建一个播放唱歌音频的线程
+    :return:
+    """
+    global is_song_play_ready,is_tts_play_ready,is_song_cover_ready
     if not song_playList.empty() and song_search_playList.empty() and is_song_play_ready and is_tts_play_ready :
         is_song_play_ready = 0
         tts_thread = threading.Thread(
@@ -443,18 +490,28 @@ async def check_song_play():
         tts_thread.start()
 
 def song_play(path):
+    """
+    播放歌曲
+    :param path: 歌曲音频路径
+    :return:
+    """
     song_lst.get()
     duration = make_song_n4j.get_duration_ffmpeg(path)
-    global is_song_play_ready,is_song_search_play_ready
-    # end：播放多少秒结束  volume：音量，最大100，最小0
+    global is_song_play_ready,is_song_search_play_ready,is_song_cover_ready
+    # end:播放多少秒结束  volume：音量，最大100，最小0
     subprocess.run(
         f'mpv.exe -vo null --volume=100 --start=0 --end={duration} "{path}" 1>nul',
         shell=False,
     )
     is_song_play_ready = 1
+    is_song_cover_ready = 1
     return
 
 async def check_web_captions_printer():
+    '''
+    投放字幕打印器
+    :return:
+    '''
     global is_web_captions_printer_ready
     if not web_captions_printer.empty() and is_web_captions_printer_ready:
         input_string = web_captions_printer.get()
@@ -466,12 +523,17 @@ async def check_web_captions_printer():
             is_web_captions_printer_ready = 1
 
 async def agent_to_do():
+    """
+    直播代理功能:当其余线程都为闲置时超过一定时间启动。
+    自动聊天:会根据自己的角色设定和之前的聊天记忆发起对话
+    自动唱歌:会根据自己的心情值和config中填写的喜欢的歌曲来选歌播放。
+    :return:
+    """
     global if_agent,is_ai_ready,is_tts_ready,is_tts_play_ready,is_song_play_ready,is_song_cover_ready,emotion_score
     if if_agent and is_tts_play_ready and is_song_play_ready and is_song_cover_ready and is_ai_ready and is_tts_ready:
         if_agent = 0
-        random_agent = random.randint(0, 1)
-        #random_agent = 0
-        if random_agent == 0:
+        random_agent = random.randint(0, 10)
+        if random_agent <= 4:
             is_ai_ready = 0
             def call_agent_talk_main():
                 global if_agent,is_ai_ready
@@ -490,14 +552,17 @@ async def agent_to_do():
                     with open("configs/short_term_memory.json", "w", encoding="utf-8") as f:
                         json.dump(data, f, indent=4, ensure_ascii=False)
                 if_agent,is_ai_ready = 1,1
+                web_captions_printer.put(answer)
             tts_thread = threading.Thread(target=call_agent_talk_main)
             tts_thread.start()
-        elif random_agent == 1:
+        elif random_agent > 4:
             def call_agent_song_main(song_lst, song_playList):
                 global if_agent
-                result,if_agent = plan_agency.agent_song_main(emotion_score)
+                role_favorite_songs = role_favorite_things["喜爱的音乐"]
+                result,if_agent = plan_agency.agent_song_main(emotion_score,role_favorite_songs)
                 song_lst.put(result)
                 song_playList.put(result)
+                web_captions_printer.put("即将播放:"+result)
             tts_thread = threading.Thread(target=call_agent_song_main, args=(song_lst, song_playList))
             tts_thread.start()
 
@@ -513,15 +578,13 @@ async def main():
     sched1.add_job(check_song_search, "interval", seconds=1, id="song_search", max_instances=4)
     sched1.add_job(check_web_captions_printer, "interval", seconds=1, id="web_captions_printer", max_instances=4)
     sched1.add_job(check_answer, "interval", seconds=1, id="llm_answer", max_instances=4)
-    sched1.add_job(agent_to_do, "interval", seconds=20, id="agent_to_do", max_instances=1)
+    sched1.add_job(agent_to_do, "interval", seconds=30, id="agent_to_do", max_instances=1)
 
     # 启动调度器
     sched1.start()
-
     try:
-        # 无限循环，保持程序运行
         while True:
-            await asyncio.sleep(1)  # 在这里可以进行其他异步操作
+            await asyncio.sleep(1)
     except KeyboardInterrupt:
         pass
     finally:
