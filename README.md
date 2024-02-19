@@ -1,4 +1,5 @@
 # AI-VTUBER
+[文档教程](https://www.yuque.com/alipayxxda4itl6o/xgcgm6)
 
 ## 使用须知
 
