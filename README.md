@@ -1,6 +1,6 @@
 # AI-VTUBER
 
-[![Build Status](https://www.travis-ci.org/{whoiswennie}/{AI-Vtuber}.svg?branch=master)](https://www.travis-ci.org/{whoiswennie}/{AI-Vtuber})
+[![Build Status](https://www.travis-ci.org/whoiswennie/AI-Vtuber.svg?branch=master)](https://www.travis-ci.org/whoiswennie/AI-Vtuber)
 
 
 
