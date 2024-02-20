@@ -1,6 +1,6 @@
 # AI-VTUBER
 
-[![Build Status](https://www.travis-ci.org/whoiswennie/AI-Vtuber.svg?branch=master)](https://www.travis-ci.org/whoiswennie/AI-Vtuber)
+<a href="//github.com/whoiswennie/AI-Vtuber/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/whoiswennie/AI-Vtuber?color=%09%2300BFFF&style=flat-square"></a><a href="//github.com/whoiswennie/AI-Vtuber/issues"><img alt="GitHub issues" src="https://img.shields.io/github/issues/whoiswennie/AI-Vtuber?color=Emerald%20green&style=flat-square"></a><a href="//github.com/whoiswennie/AI-Vtuber/network"><img alt="GitHub forks" src="https://img.shields.io/github/forks/whoiswennie/AI-Vtuber?color=%2300BFFF&style=flat-square"></a><a href="//www.python.org"><img src="https://img.shields.io/badge/python-3.10+-blue.svg" alt="python"></a>
 
 
 
