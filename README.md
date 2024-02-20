@@ -53,7 +53,7 @@
   - [ ] 对接diffsinger，实现一个完整的语音声库定制方案
   - [ ] 支持更多的llm接口方案
   - [ ] 支持更多的TTS接口方案
-  - [ ] 利用comfyui工作流搞点事:smirk:
+  - [ ] 利用comfyui工作流搞点事 😏
 
 
 ## 创建虚拟环境
