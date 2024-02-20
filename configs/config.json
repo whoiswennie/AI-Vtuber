@@ -6,6 +6,7 @@
         "setting": "",
         "sex": "",
         "age": 17,
+        "emotional_display": [0,1,2,3,4],
         "emotion": "",
         "favorite_things": {
             "喜爱的音乐": []

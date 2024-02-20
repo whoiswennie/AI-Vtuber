@@ -47,6 +47,7 @@ role_prompt = hps.ai_vtuber.setting
 role_name = hps.ai_vtuber.name
 role_sex = hps.ai_vtuber.sex
 role_age = hps.ai_vtuber.age
+role_emotional_display = hps.ai_vtuber.emotional_display
 emotion_score = hps.ai_vtuber.emotion
 role_favorite_things = hps.ai_vtuber.favorite_things
 role_language_model = hps.ai_vtuber.language_model
@@ -298,12 +299,14 @@ def ai_response():
     if score == "None":
         score = 0
     emotion_state = set_emotion(score)
+    emotion_result = min(4, max(0, emotion_score // 20))
     role_json = {
         "角色名称": role_name,
         "角色性别": role_sex,
         "角色年龄": role_age,
         "角色当前情绪": f"你当前的心情值为{emotion_score}(范围为[0-100])，正处于{emotion_state}状态",
         "你需要扮演的角色设定": role_prompt,
+        "当前扮演角色的情绪表现":role_emotional_display[emotion_result],
         "你之前的聊天记录:": memory.short_term_memory_window(prompt)
     }
     if keyword != "None":
@@ -317,7 +320,7 @@ def ai_response():
         chat_messages = [
             {
                 "role": "user",
-                "content": f"接下来你需要扮演我设定的角色,本段设定你自己知道即可，不要向别人说出来。{str(role_json)}你来使用扮演角色的语气和心情状态来复述下面的内容:{response}"
+                "content": f"接下来你需要扮演我设定的角色,本段设定你自己知道即可，不要向别人说出来，如果对话内容涉及到你扮演角色时，你要自动的带入角色中。{str(role_json)}你来使用扮演角色的语气和心情状态来复述下面的内容:{response}"
             }
         ]
         response = chat_tgw(role_language_model, chat_messages)
@@ -325,7 +328,7 @@ def ai_response():
         chat_messages = [
             {
                 "role": "user",
-                "content": f"接下来你需要扮演我设定的角色,本段设定你自己知道即可，不要向别人说出来。{str(role_json)}你来使用扮演角色的语气和心情状态来回答下面的问题:{prompt}"
+                "content": f"接下来你需要扮演我设定的角色,本段设定你自己知道即可，不要向别人说出来，如果对话内容涉及到你扮演角色时，你要自动的带入角色中。{str(role_json)}你来使用扮演角色的语气和心情状态来回答下面的问题:{prompt}"
             }
         ]
         response = chat_tgw(role_language_model, chat_messages)
