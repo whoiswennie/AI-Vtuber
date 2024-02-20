@@ -4,7 +4,7 @@
 
 
 
-[文档教程](https://www.yuque.com/alipayxxda4itl6o/xgcgm6)
+[文档教程](https://www.yuque.com/alipayxxda4itl6o/xgcgm6) | [整合包测试](https://pan.quark.cn/s/07c0aaefd558)
 
 
 ## 使用须知
