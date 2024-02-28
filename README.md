@@ -4,6 +4,10 @@
 
 
 
+---
+
+## 附件
+
 [文档教程](https://www.yuque.com/alipayxxda4itl6o/xgcgm6) | [整合包测试](https://pan.quark.cn/s/07c0aaefd558)
 
 
@@ -74,7 +78,7 @@ pip uninstall torch
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 ```
 
-#### 更多详细教程请运行
+#### streamlit页面版客户端
 ```pyth
 streamlit run streamlit_agent.py
 ```
