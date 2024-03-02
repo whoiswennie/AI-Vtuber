@@ -8,6 +8,9 @@ import queue
 import shutil
 import subprocess
 import threading
+
+import requests
+
 import make_song_n4j
 import svc_api_request
 import tts_module
@@ -47,11 +50,11 @@ role_prompt = hps.ai_vtuber.setting
 role_name = hps.ai_vtuber.name
 role_sex = hps.ai_vtuber.sex
 role_age = hps.ai_vtuber.age
-role_emotional_display = hps.ai_vtuber.emotional_display
 emotion_score = hps.ai_vtuber.emotion
 role_favorite_things = hps.ai_vtuber.favorite_things
 role_language_model = hps.ai_vtuber.language_model
 role_speech_model = hps.ai_vtuber.speech_model
+if_easy_ai_vtuber = hps.ai_vtuber.if_easy_ai_vtuber
 if_agent = hps.ai_vtuber.if_agent
 is_ai_ready = hps.bilibili.is_ai_ready
 is_tts_ready = hps.bilibili.is_tts_ready
@@ -62,6 +65,7 @@ is_obs_ready = hps.bilibili.is_obs_ready
 is_obs_play_ready = hps.bilibili.is_obs_play_ready
 is_web_captions_printer_ready = hps.bilibili.is_web_captions_printer_ready
 web_captions_printer_port = hps.api_path.web_captions_printer.port
+easy_ai_vtuber_url = hps.api_path.easy_ai_vtuber.url
 AudioCount = hps.bilibili.AudioCount
 AudioPlay = hps.bilibili.AudioPlay
 
@@ -299,14 +303,12 @@ def ai_response():
     if score == "None":
         score = 0
     emotion_state = set_emotion(score)
-    emotion_result = min(4, max(0, emotion_score // 20))
     role_json = {
         "角色名称": role_name,
         "角色性别": role_sex,
         "角色年龄": role_age,
         "角色当前情绪": f"你当前的心情值为{emotion_score}(范围为[0-100])，正处于{emotion_state}状态",
         "你需要扮演的角色设定": role_prompt,
-        "当前扮演角色的情绪表现":role_emotional_display[emotion_result],
         "你之前的聊天记录:": memory.short_term_memory_window(prompt)
     }
     if keyword != "None":
@@ -320,7 +322,7 @@ def ai_response():
         chat_messages = [
             {
                 "role": "user",
-                "content": f"接下来你需要扮演我设定的角色,本段设定你自己知道即可，不要向别人说出来，如果对话内容涉及到你扮演角色时，你要自动的带入角色中。{str(role_json)}你来使用扮演角色的语气和心情状态来复述下面的内容:{response}"
+                "content": f"接下来你需要扮演我设定的角色,本段设定你自己知道即可，不要向别人说出来。{str(role_json)}你来使用扮演角色的语气和心情状态来复述下面的内容:{response}"
             }
         ]
         response = chat_tgw(role_language_model, chat_messages)
@@ -328,7 +330,7 @@ def ai_response():
         chat_messages = [
             {
                 "role": "user",
-                "content": f"接下来你需要扮演我设定的角色,本段设定你自己知道即可，不要向别人说出来，如果对话内容涉及到你扮演角色时，你要自动的带入角色中。{str(role_json)}你来使用扮演角色的语气和心情状态来回答下面的问题:{prompt}"
+                "content": f"接下来你需要扮演我设定的角色,本段设定你自己知道即可，不要向别人说出来。{str(role_json)}你来使用扮演角色的语气和心情状态来回答下面的问题:{prompt}"
             }
         ]
         response = chat_tgw(role_language_model, chat_messages)
@@ -366,7 +368,7 @@ def chat_tgw(model,messages):
 # tts线程
 async def check_tts():
     """
-    如果语音已经放完且队列中还有回复 则创建一个生成并播放TTS的线程
+    如果语音已经放完且队列中还有回复 则创建一个合成TTS的线程
     :return:
     """
     global is_tts_ready,AudioCount
@@ -441,11 +443,19 @@ async def check_tts_play():
     若已经播放完毕且播放列表中有数据 则创建一个播放tts音频的线程
     :return:
     """
-    global is_tts_play_ready,is_song_play_ready
+    global is_tts_play_ready,is_song_play_ready,if_easy_ai_vtuber
     if not tts_playList.empty() and is_tts_play_ready and is_song_play_ready:
         is_tts_play_ready = 0
-        tts_thread = threading.Thread(target=lambda: mpv_play(os.path.join(project_root, f"song_output/{tts_playList.get()}.wav")), daemon=True)
-        tts_thread.start()
+        wav_name = tts_playList.get()
+        if not if_easy_ai_vtuber:
+            tts_thread = threading.Thread(target=lambda: mpv_play(os.path.join(project_root, f"song_output/{wav_name}.wav")), daemon=True)
+            tts_thread.start()
+        else:
+            easy_ai_vtuber_thread = threading.Thread(
+                target=lambda: to_easy_ai_vtuber_api(
+                    "speak",os.path.join(project_root, f"song_output/{wav_name}.wav")), daemon=False)
+            easy_ai_vtuber_thread.start()
+
 
 def mpv_play(path):
     """
@@ -469,15 +479,21 @@ async def check_song_search():
     若已经点歌播放完毕且点歌列表中有数据 则创建一个播放点歌歌曲的线程
     :return:
     """
-    global is_song_play_ready,is_tts_play_ready,is_song_cover_ready
+    global is_song_play_ready,is_tts_play_ready,is_song_cover_ready,if_easy_ai_vtuber
     if not song_search_playList.empty() and is_song_play_ready and is_tts_play_ready:
         is_song_play_ready = 0
         song_name = song_search_playList.get()
         if song_name == "output":
             is_song_cover_ready = 0
-        tts_thread = threading.Thread(
-            target=lambda: song_play(f"download/{song_name}.wav"), daemon=True)
-        tts_thread.start()
+        if not if_easy_ai_vtuber:
+            tts_thread = threading.Thread(
+                target=lambda: song_play(f"download/{song_name}.wav"), daemon=True)
+            tts_thread.start()
+        else:
+            easy_ai_vtuber_thread = threading.Thread(
+                target=lambda: to_easy_ai_vtuber_api(
+                    "speak",os.path.join(project_root, f"download/{song_name}.wav")))
+            easy_ai_vtuber_thread.start()
 
 # 唱歌线程
 async def check_song_play():
@@ -485,12 +501,17 @@ async def check_song_play():
     若音乐已经播放完毕且播放列表中有数据，且点歌线程和语音播放线程为空，则创建一个播放唱歌音频的线程
     :return:
     """
-    global is_song_play_ready,is_tts_play_ready,is_song_cover_ready
+    global is_song_play_ready,is_tts_play_ready,is_song_cover_ready,if_easy_ai_vtuber
     if not song_playList.empty() and song_search_playList.empty() and is_song_play_ready and is_tts_play_ready :
         is_song_play_ready = 0
-        tts_thread = threading.Thread(
-            target=lambda: song_play(os.path.join(hps.songdatabase.song_path, f'{song_playList.get()}.wav')))
-        tts_thread.start()
+        if not if_easy_ai_vtuber:
+            tts_thread = threading.Thread(
+                target=lambda: song_play(os.path.join(hps.songdatabase.song_path, f'{song_playList.get()}.wav')))
+            tts_thread.start()
+        else:
+            easy_ai_vtuber_thread = threading.Thread(
+                target=lambda: to_easy_ai_vtuber_api("speak",os.path.join(hps.songdatabase.song_path, f'{song_playList.get()}.wav')))
+            easy_ai_vtuber_thread.start()
 
 def song_play(path):
     """
@@ -510,6 +531,19 @@ def song_play(path):
     is_song_cover_ready = 1
     return
 
+def to_easy_ai_vtuber_api(type,path):
+    global is_tts_play_ready,is_song_play_ready,is_song_cover_ready
+    data = {
+        "type": type,  # 说话动作
+        "speech_path": path  # 语音音频路径
+    }
+    response = requests.post(easy_ai_vtuber_url, json=data)
+    if response.status_code == 200:
+        print("easy_ai_vtuber_api请求成功")
+    is_tts_play_ready = 1
+    is_song_play_ready = 1
+    is_song_cover_ready = 1
+
 async def check_web_captions_printer():
     '''
     投放字幕打印器
@@ -524,6 +558,25 @@ async def check_web_captions_printer():
             send_to_web_captions_printer(line,web_captions_printer_port)
             time.sleep(3)
             is_web_captions_printer_ready = 1
+
+async def data_monitor():
+    global is_ai_ready,is_tts_ready,is_tts_play_ready,is_song_play_ready,is_song_cover_ready,is_obs_ready,is_obs_play_ready,is_web_captions_printer_ready,AudioPlay,AudioCount
+    data = {
+        "is_ai_ready": is_ai_ready,
+        "is_tts_ready": is_tts_ready,
+        "is_tts_play_ready": is_tts_play_ready,
+        "is_song_play_ready": is_song_play_ready,
+        "is_song_cover_ready": is_song_cover_ready,
+        "is_obs_ready": is_obs_ready,
+        "is_obs_play_ready": is_obs_play_ready,
+        "is_web_captions_printer_ready": is_web_captions_printer_ready,
+        "AudioPlay": AudioPlay,
+        "AudioCount": AudioCount
+    }
+
+    response = requests.post('http://localhost:9550/api', json=data)
+
+
 
 async def agent_to_do():
     """
@@ -576,12 +629,13 @@ async def main():
     # 添加定时任务
     sched1.add_job(blivedm_api_get, "interval", seconds=1, id="blivedm_api_get", max_instances=1)
     sched1.add_job(check_tts, "interval", seconds=1, id="tts", max_instances=4)
-    sched1.add_job(check_tts_play, "interval", seconds=1, id="tts_play", max_instances=4)
-    sched1.add_job(check_song_play, "interval", seconds=1, id="song_play", max_instances=4)
-    sched1.add_job(check_song_search, "interval", seconds=1, id="song_search", max_instances=4)
-    sched1.add_job(check_web_captions_printer, "interval", seconds=1, id="web_captions_printer", max_instances=4)
+    sched1.add_job(check_tts_play, "interval", seconds=1, id="tts_play", max_instances=1)
+    sched1.add_job(check_song_play, "interval", seconds=1, id="song_play", max_instances=1)
+    sched1.add_job(check_song_search, "interval", seconds=1, id="song_search", max_instances=1)
+    sched1.add_job(check_web_captions_printer, "interval", seconds=1, id="web_captions_printer", max_instances=1)
     sched1.add_job(check_answer, "interval", seconds=1, id="llm_answer", max_instances=4)
-    sched1.add_job(agent_to_do, "interval", seconds=30, id="agent_to_do", max_instances=1)
+    sched1.add_job(data_monitor, "interval", seconds=2, id="data_monitor", max_instances=1)
+    sched1.add_job(agent_to_do, "interval", seconds=120, id="agent_to_do", max_instances=1)
 
     # 启动调度器
     sched1.start()
