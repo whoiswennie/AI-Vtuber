@@ -39,6 +39,7 @@
   - [x] 构建类memgpt式的记忆滑动窗口做短期记忆搜索
   - [ ] 对接sd（webui和comfyui）
   - [x] 对接ikaros-521的字幕打印器项目
+  - [x] 对接EasyAiVtuber项目
   - [ ] 支持通过按键映射来调整live2d动作
   - [x] 支持视频学习（本质上是听音频）和文本学习
   - [x] 简单的代理学习（通过智谱的搜索插件来比较偷懒的制作知识库，人类可以随时干预）
@@ -116,3 +117,21 @@ voicemeeter
 【uvr5】
 
 ###### AI-Vtuber/pretrained_models/uvr5/models
+
+
+
+## 对接仓库
+
+https://github.com/xfgryujk/blivedm
+
+https://github.com/ycyy/faster-whisper-webui
+
+https://github.com/yang123qwe/vocal_separation_by_uvr5
+
+https://github.com/svc-develop-team/so-vits-svc
+
+https://github.com/RVC-Boss/GPT-SoVITS
+
+https://github.com/Ksuriuri/EasyAIVtuber
+
+https://github.com/fishaudio/Bert-VITS2
