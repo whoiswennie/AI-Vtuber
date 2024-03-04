@@ -93,7 +93,7 @@ def set_emotion(emotion_score,score):
         emotion_state = "激动"
     return emotion_state
 
-def agent_talk_main(role_prompt,role_name,role_sex,role_age,emotion_score,role_language_model):
+def agent_talk_main(role_prompt,role_name,role_sex,role_age,role_emotional_display,emotion_score,role_language_model):
     """
     根据角色模板、当前情绪和短期记忆发起会话
     :param role_prompt: 角色设定

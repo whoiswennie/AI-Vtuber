@@ -50,6 +50,7 @@ role_prompt = hps.ai_vtuber.setting
 role_name = hps.ai_vtuber.name
 role_sex = hps.ai_vtuber.sex
 role_age = hps.ai_vtuber.age
+role_emotional_display = hps.ai_vtuber.role_emotional_display
 emotion_score = hps.ai_vtuber.emotion
 role_favorite_things = hps.ai_vtuber.favorite_things
 role_language_model = hps.ai_vtuber.language_model
@@ -589,7 +590,7 @@ async def agent_to_do():
     自动唱歌:会根据自己的心情值和config中填写的喜欢的歌曲来选歌播放。
     :return:
     """
-    global if_agent,is_ai_ready,is_tts_ready,is_tts_play_ready,is_song_play_ready,is_song_cover_ready,emotion_score
+    global if_agent,is_ai_ready,is_tts_ready,is_tts_play_ready,is_song_play_ready,is_song_cover_ready,role_emotional_display,emotion_score
     if if_agent and is_tts_play_ready and is_song_play_ready and is_song_cover_ready and is_ai_ready and is_tts_ready:
         if_agent = 0
         random_agent = random.randint(0, 10)
@@ -597,7 +598,7 @@ async def agent_to_do():
             is_ai_ready = 0
             def call_agent_talk_main():
                 global if_agent,is_ai_ready
-                answer = plan_agency.agent_talk_main(role_prompt,role_name,role_sex,role_age,emotion_score,role_language_model)
+                answer = plan_agency.agent_talk_main(role_prompt,role_name,role_sex,role_age,role_emotional_display,emotion_score,role_language_model)
                 AnswerList.put(answer)
                 print(f"\033[31m[AI-Vtuber]\033[0m{answer}")
                 time1 = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
