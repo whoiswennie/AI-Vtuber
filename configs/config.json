@@ -43,13 +43,13 @@
     "songdatabase": {
         "song_csv_path": "csv/歌库.csv",
         "song_dict_path": "configs/song_dict.json",
-        "song_path": "",
+        "song_path": "绝对路径",
         "similarity_threshold": 67,
         "search_key": "歌名"
     },
     "api_path": {
         "so_vits_svc": {
-            "url": "http://127.0.0.1:1145/wav2wav",
+            "url": "http://0.0.0.0:1145/wav2wav",
             "tran": 0,
             "spk": "huan",
             "wav_format": "wav"

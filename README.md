@@ -81,7 +81,7 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 
 #### streamlit页面版客户端
 ```pyth
-streamlit run streamlit_agent.py
+streamlit run streamlit_ui.py
 ```
 
 ##### 国内镜像源

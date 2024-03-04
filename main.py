@@ -490,6 +490,9 @@ async def check_song_search():
                 target=lambda: song_play(f"download/{song_name}.wav"), daemon=True)
             tts_thread.start()
         else:
+            tts_thread = threading.Thread(
+                target=lambda: song_play(f"download/{song_name}.wav"), daemon=True)
+            tts_thread.start()
             easy_ai_vtuber_thread = threading.Thread(
                 target=lambda: to_easy_ai_vtuber_api(
                     "speak",os.path.join(project_root, f"download/{song_name}.wav")))
@@ -504,13 +507,14 @@ async def check_song_play():
     global is_song_play_ready,is_tts_play_ready,is_song_cover_ready,if_easy_ai_vtuber
     if not song_playList.empty() and song_search_playList.empty() and is_song_play_ready and is_tts_play_ready :
         is_song_play_ready = 0
+        song_name = song_playList.get()
         if not if_easy_ai_vtuber:
             tts_thread = threading.Thread(
-                target=lambda: song_play(os.path.join(hps.songdatabase.song_path, f'{song_playList.get()}.wav')))
+                target=lambda: song_play(os.path.join(hps.songdatabase.song_path, f'{song_name}.wav')))
             tts_thread.start()
         else:
             easy_ai_vtuber_thread = threading.Thread(
-                target=lambda: to_easy_ai_vtuber_api("speak",os.path.join(hps.songdatabase.song_path, f'{song_playList.get()}.wav')))
+                target=lambda: to_easy_ai_vtuber_api("speak",os.path.join(hps.songdatabase.song_path, f'{song_name}.wav')))
             easy_ai_vtuber_thread.start()
 
 def song_play(path):
@@ -539,7 +543,7 @@ def to_easy_ai_vtuber_api(type,path):
     }
     response = requests.post(easy_ai_vtuber_url, json=data)
     if response.status_code == 200:
-        print("easy_ai_vtuber_api请求成功")
+        print("\033[31measy_ai_vtuber_api请求成功\033[0m")
     is_tts_play_ready = 1
     is_song_play_ready = 1
     is_song_cover_ready = 1
@@ -633,9 +637,9 @@ async def main():
     sched1.add_job(check_song_play, "interval", seconds=1, id="song_play", max_instances=1)
     sched1.add_job(check_song_search, "interval", seconds=1, id="song_search", max_instances=1)
     sched1.add_job(check_web_captions_printer, "interval", seconds=1, id="web_captions_printer", max_instances=1)
-    sched1.add_job(check_answer, "interval", seconds=1, id="llm_answer", max_instances=4)
+    sched1.add_job(check_answer, "interval", seconds=1, id="llm_answer", max_instances=1)
     sched1.add_job(data_monitor, "interval", seconds=2, id="data_monitor", max_instances=1)
-    sched1.add_job(agent_to_do, "interval", seconds=120, id="agent_to_do", max_instances=1)
+    sched1.add_job(agent_to_do, "interval", seconds=45, id="agent_to_do", max_instances=1)
 
     # 启动调度器
     sched1.start()

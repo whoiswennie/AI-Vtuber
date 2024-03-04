@@ -87,7 +87,11 @@ def to_gpt_sovits_api(text,output_folder,AudioCount):
         "text_language": hps.api_path.gpt_sovits.text_language
     }
     response = requests.get(url, params)
+    print(params)
     if response.status_code == 200:
         with open(wav_output_path, "wb") as f:
             f.write(response.content)
-        print("INFO 响应成功")
+        print("INFO tts响应成功")
+        return True
+    else:
+        return False
