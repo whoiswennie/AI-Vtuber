@@ -81,17 +81,23 @@ def agent_song_main(emotion_score,role_favorite_songs):
 def set_emotion(emotion_score,score):
     global emotion_state
     emotion_score += score
+    emotion_num = 2
     if 0 <= emotion_score < 20:
         emotion_state = "悲伤"
+        emotion_num = 0
     elif 20 <= emotion_score < 40:
         emotion_state = "焦虑"
+        emotion_num = 1
     elif 40 <= emotion_score < 60:
         emotion_state = "平静"
+        emotion_num = 2
     elif 60 <= emotion_score < 80:
         emotion_state = "开心"
+        emotion_num = 3
     elif 80 <= emotion_score <= 100:
         emotion_state = "激动"
-    return emotion_state
+        emotion_num = 4
+    return emotion_state,emotion_num
 
 def agent_talk_main(role_prompt,role_name,role_sex,role_age,role_emotional_display,emotion_score,role_language_model):
     """
@@ -115,12 +121,12 @@ def agent_talk_main(role_prompt,role_name,role_sex,role_age,role_emotional_displ
     print(
         f"\033[32mSystem>>\033[0m[agent执行中]，当前选择的任务:\033[31m[聊天任务]\033[0m"
     )
-    emotion_state = set_emotion(emotion_score,0)
+    emotion_state,emotion_num = set_emotion(emotion_score,0)
     role_json = {
         "角色名称": role_name,
         "角色性别": role_sex,
         "角色年龄": role_age,
-        "角色当前情绪": f"你当前的心情值为{emotion_score}(范围为[0-100])，正处于{emotion_state}状态",
+        "角色当前情绪": f"你当前的心情值为{emotion_score}(范围为[0-100])，正处于{emotion_state}状态，此时角色的情绪表现为:{role_emotional_display[emotion_num]}",
         "你需要扮演的角色设定": role_prompt,
         "你之前的聊天记录:": role_mem
     }

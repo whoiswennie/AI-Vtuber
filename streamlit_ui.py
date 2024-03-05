@@ -1,4 +1,5 @@
 import subprocess
+import webbrowser
 import pandas as pd
 import shutil
 import chroma_database
@@ -9,6 +10,7 @@ import os
 import json
 import memory
 import study_for_memory
+import tts_module
 import utils
 import make_song_n4j
 import tool.Fast_Whisper
@@ -21,7 +23,6 @@ project_root = os.path.dirname(os.path.abspath(__file__))
 
 # 定义全局变量
 RECORDING = False
-
 
 def delete_files_except_txt(folder_path):
     try:
@@ -108,6 +109,7 @@ def start_recording():
 def set_emotion(score):
     global emotion_score,emotion_state
     emotion_score += score
+    emotion_num = 2
     with open('configs/config.json', encoding="utf-8", mode='r') as f:
         data = json.load(f)
     data["ai_vtuber"]["emotion"] = emotion_score
@@ -116,19 +118,24 @@ def set_emotion(score):
     emotion_score = hps.ai_vtuber.emotion
     if emotion_score >= 0 and emotion_score < 20:
         emotion_state = "悲伤"
+        emotion_num = 0
     elif emotion_score >= 20 and emotion_score < 40:
         emotion_state = "焦虑"
+        emotion_num = 1
     elif emotion_score >= 40 and emotion_score < 60:
         emotion_state = "平静"
+        emotion_num = 2
     elif emotion_score >= 60 and emotion_score < 80:
         emotion_state = "开心"
+        emotion_num = 3
     elif emotion_score >= 80 and emotion_score <= 100:
         emotion_state = "激动"
+        emotion_num = 4
     elif emotion_score < 0:
         emotion_score = 0
     elif emotion_score > 100:
         emotion_score = 100
-    return emotion_state
+    return emotion_state,emotion_num
 
 def chat_tgw(model,messages):
     from chat_api import create_chat_completion
@@ -139,12 +146,12 @@ def llm_response(query):
     keyword, score, result = study_for_memory.search_from_memory(query)
     if score == "None":
         score = 0
-    emotion_state = set_emotion(score)
+    emotion_state,emotion_num = set_emotion(score)
     role_json = {
         "角色名称": role_name,
         "角色性别": role_sex,
         "角色年龄": role_age,
-        "角色当前情绪": f"你当前的心情值为{emotion_score}(范围为[0-100])，正处于{emotion_state}状态",
+        "角色当前情绪": f"你当前的心情值为{emotion_score}(范围为[0-100])，正处于{emotion_state}状态，此时角色的情绪表现为:{role_emotional_display[emotion_num]}",
         "你需要扮演的角色设定": role_prompt,
         "你之前的聊天记录:": memory.short_term_memory_window(query)
     }
@@ -271,76 +278,95 @@ def main():
         st.title('AI-Vtuber')
         st.markdown('项目作者:这就是天幻呀')
         st.markdown('---')
-        page = st.sidebar.radio("页面导航", ["使用教程","AI-Vtuber","歌库","认知学习"])
-    if page == "使用教程":
-        selection = st.sidebar.radio("请选择一个选项：", ["版本介绍", "项目简介", "使用说明"])
-        if selection == "版本介绍":
-            st.markdown("---")
-            st.markdown("### 当前版本beta0.1")
-            st.write("当前版本正在熟悉和探索各种功能，bug很多，代码复用性差，秉承着能跑起来就行的原则。下个阶段目标：调整哔哩哔哩api监听方案，提供更丰富的直播间互动元素，增加语言模型与模型数据库的关联性。")
-            st.markdown("---")
-        elif selection == "项目简介":
-            st.write("这是项目简介的内容...")
-        elif selection == "使用说明":
-            st.title("说明文档")
-            st.markdown("---")
-            tutorial_select = st.selectbox('请选择一个选项：', ['环境配置', '前期准备', '功能使用'])
-            if tutorial_select == "环境配置":
-                st.markdown("### 一、环境配置")
-                st.markdown("```pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121```")
-                st.markdown("```pip install -r requirements.txt```")
-                st.markdown("### 二、预训练模型准备")
-                st.markdown("##### 1.faster-whisper-large-v2")
-                st.markdown("```https://huggingface.co/guillaumekln/faster-whisper-large-v2```")
-                st.markdown("##### 2.向量词嵌入模型")
-                st.markdown("```https://huggingface.co/thenlper/gte-base-zh```")
-            elif tutorial_select == "前期准备":
-                st.markdown("### 前期准备")
-                st.markdown("##### 填写配置文件")
-                st.text_area("ai主播基础设置","填写基础信息和人物设定。")
-                data_0 = {
-                    "参数": ["if_agent","prompt","name","setting","sex","emotion","plan_to_do"],
-                    "参数介绍": ["agent的开关，暂时没用","强制角色扮演的提示词","ai主播的名称","扮演的角色设定","角色性别","情绪值【范围0-100】","ai代理的计划任务"]
-                }
-                df_0 = pd.DataFrame(data_0)
-                st.write("哔哩哔哩直播监听配置参数介绍：")
-                st.dataframe(df_0)
-                st.text_area("b站监听设置", "biblibili开放平台\nb站开放平台https://open-live.bilibili.com/注册成为开发者，“直播创作者服务中心” 创建项目，获取 项目ID 、 access_key_id 、 access_key_secred填写到config中blivedm中\n")
-                data_1 = {
-                    "参数": ["ACCESS_KEY_ID", "ACCESS_KEY_SECRET", "APP_ID", "ROOM_OWNER_AUTH_CODE"],
-                    "参数介绍": ["开放平台入驻的密钥ID", "开放平台入驻的密钥", "开放平台创建的项目ID", "主播身份码（可以在哔哩哔哩直播中心查看）"]
-                }
-                df_1 = pd.DataFrame(data_1)
-                st.write("其余api端口配置文件参数介绍：")
-                st.dataframe(df_1)
-                data_2 = {
-                    "参数": ["so_vits_svc.url", "so_vits_svc.tran", "so_vits_svc.spk", "so_vits_svc.wav_format","llm_api.zhipuai_key","neo4j.url","neo4j.user","neo4j.password","uvr5.model","fast-whisper.model_path","web_captions_printer.port"],
-                    "参数介绍": ["你部署的so-vits-svc（4.1）路由", "so-vits-svc（4.1）的转换音调", "so-vits-svc（4.1）的说话人身份","so-vits-svc（4.1）转换音频格式", "语言模型:智谱api的密钥","图数据库的路由","图数据库的账号","图数据库的密码","直播时使用的人声分离模型默认模型","语音转文本的模型路径","字幕打印器的路由"]
-                }
-                df_2 = pd.DataFrame(data_2)
-                st.write("config配置文件标签介绍：")
-                st.dataframe(df_2)
-                st.markdown("##### 制作歌库")
-                data_3 = {
-                    "标签": ["歌曲id", "歌名", "歌曲语言", "演唱人数",
-                           "歌词", "歌曲来源", "歌曲简介", "风格", "标签",
-                           "播放次数", "个人评价","个人评分","最近一次播放"],
-                    "知识图谱": ["/", "可搜索", "可搜索",
-                             "可搜索", "/", "可搜索", "/", "可搜索",
-                             "可搜索", "/", "/","/","/"]
-                }
-                df_3 = pd.DataFrame(data_3)
-                st.write("歌库csv参数介绍：")
-                st.dataframe(df_3)
-                st.text("填写标签列表中的知识图谱可搜索的参数")
-            elif tutorial_select == "功能使用":
-                st.markdown("### AI-Vtuber知识库定制器")
-                st.markdown("```streamlit run streamlit_agent.py ```")
-                st.markdown("### b站监听与主程序")
-                st.markdown("##### 启动b站监听")
-                st.markdown("```python blivedm_api.py ```")
-                st.markdown("##### 启动ai主播主程序")
-                st.markdown("```python main.py ```")
+        page = st.sidebar.radio("页面导航", ["直播管理","AI-Vtuber","歌库","认知学习"])
+    if page == "直播管理":
+        st.title("直播管理")
+        st.markdown("---")
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            if st.button("开启直播"):
+                subprocess.Popen(["cmd", "/c", "start", "python", "blivedm_api.py"], shell=True)
+                subprocess.Popen(["cmd", "/c", "start", "python", "main.py"], shell=True)
+                # 构建iframe标签的HTML代码，并将BV号插入到URL中
+                webbrowser.open(f"https://live.bilibili.com/{room_id}")
+        with col2:
+            if st.button("终止mpv播放器"):
+                import psutil
+                import signal
+                # 查找包含 "mpv" 的进程列表
+                for proc in psutil.process_iter(['pid', 'name']):
+                    if 'mpv' in proc.name():
+                        mpv_pid = proc.pid
+                        # 终止找到的 mpv 进程
+                        proc.send_signal(signal.SIGTERM)
+        with col3:
+            if st.button("启动flask监听"):
+                st.success("flask监听端口启动成功")
+                subprocess.Popen(['cmd', '/k', 'python', 'flask_live_broadcast_data_monitor.py'], creationflags=subprocess.CREATE_NEW_CONSOLE)
+        with col4:
+            if st.button("判断所有端口是否启动"):
+                import socket
+                from urllib.parse import urlparse
+                def extract_port_and_url(url):
+                    parsed_url = urlparse(url)
+                    if parsed_url.scheme == 'http' or parsed_url.scheme == 'https':
+                        netloc = parsed_url.netloc.split(':')[0]
+                        return netloc, parsed_url.port
+                    elif parsed_url.scheme == 'bolt':
+                        netloc = parsed_url.netloc.split(':')[0]
+                        return netloc, int(parsed_url.netloc.split(':')[-1])
+                    else:
+                        return None, None
+                urls = [
+                    {"live_broadcast_data_monitor_api":"http://0.0.0.0:9550"},
+                    {"so_vits_svc_api":hps.api_path.so_vits_svc.url},
+                    {"bert_vits2_api":hps.api_path.bert_vits2.url},
+                    {"gpt_sovits_api":hps.api_path.gpt_sovits.url},
+                    {"easy_ai_vtuber_api":hps.api_path.easy_ai_vtuber.url},
+                    {"neo4j_api":hps.api_path.neo4j.url}
+                ]
+                def is_port_in_use(host,port):
+                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                        try:
+                            s.bind((host, port))
+                        except OSError:
+                            return True
+                        else:
+                            return False
+                for url in urls:
+                    api_name = next(iter(url.keys()), None)
+                    api_url = next(iter(url.values()), None)
+                    host,port = extract_port_and_url(api_url)
+                    if is_port_in_use(host,port):
+                        st.success(f"{api_name} 端口 {port} 已启动")
+                    else:
+                        st.error(f"{api_name} 端口 {port} 未启动")
+
+        select_live = st.selectbox("功能选择",["默认","live2d监控"],index=0)
+        if select_live == "live2d监控":
+            import socket as skt
+            try:
+                # 检查端口是否已被占用
+                sock = skt.socket(skt.AF_INET, skt.SOCK_STREAM)
+                result = sock.connect_ex(("localhost", 8765))
+                if result == 0:
+                    st.error("端口 8765 已被占用，请确保没有其他程序在使用该端口。")
+                else:
+                    st.success("端口 8765 可用，正在进行live2d监控...")
+                    st.write("正在启动 WebSocket 服务器...")
+                    process = subprocess.Popen(["python", "websocket_server.py"], stdout=subprocess.PIPE,
+                                               stderr=subprocess.PIPE)
+                    # 显示服务器启动日志
+                    st.write("WebSocket 服务器启动日志：")
+                    for line in process.stdout:
+                        st.write(line.decode().strip())
+
+                    for line in process.stderr:
+                        st.error(line.decode('utf-8', 'ignore').strip())
+            except Exception as e:
+                st.error(f"发生错误：{e}")
+            finally:
+                pass
 
     elif page == "AI-Vtuber":
         markdown_text = """
@@ -432,11 +458,17 @@ def main():
             with col3:
                 st.text("当前情绪值: " + f"{e_score}")
             with col4:
-                st.text("当前情绪状态:" + set_emotion(0))
+                st.text("当前情绪状态:" + set_emotion(0)[0])
             st.text("角色设定:" + vtuber_setting)
             # 创建输出框
             st.write("回复信息：")
             st.text_area("",value=response, height=400)
+            tts_response = tts_module.to_gpt_sovits_api(response, os.path.join(project_root, "output"), "tts")
+            if tts_response:
+                st.audio("output/tts.wav", format="audio/wav")
+                st.success("gpt-sovits合成成功")
+            else:
+                st.error("语音合成服务未启动")
 
         elif choice == "翻唱":
             # 添加一个按钮来删除临时音频文件
@@ -891,12 +923,15 @@ if __name__ == '__main__':
     hps = utils.get_hparams_from_file("configs/config.json")
     api_key = hps.api_path.llm_api.zhipuai_key
     song_path = hps.songdatabase.song_path
+    room_id = hps.bilibili.blivedm.room_id
     client = ZhipuAI(api_key=api_key)
     role_prompt = hps.ai_vtuber.setting
     role_name = hps.ai_vtuber.name
     role_sex = hps.ai_vtuber.sex
     role_age = hps.ai_vtuber.age
+    role_emotional_display = hps.ai_vtuber.emotional_display
     role_language_model = hps.ai_vtuber.language_model
+    role_speech_model = hps.ai_vtuber.speech_model
     vtuber_name = hps.ai_vtuber.name
     vtuber_sex = hps.ai_vtuber.sex
     vtuber_setting = hps.ai_vtuber.setting

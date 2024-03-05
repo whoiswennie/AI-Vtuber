@@ -50,7 +50,7 @@ role_prompt = hps.ai_vtuber.setting
 role_name = hps.ai_vtuber.name
 role_sex = hps.ai_vtuber.sex
 role_age = hps.ai_vtuber.age
-role_emotional_display = hps.ai_vtuber.role_emotional_display
+role_emotional_display = hps.ai_vtuber.emotional_display
 emotion_score = hps.ai_vtuber.emotion
 role_favorite_things = hps.ai_vtuber.favorite_things
 role_language_model = hps.ai_vtuber.language_model
@@ -275,21 +275,27 @@ def set_emotion(score):
     '''
     global emotion_score,emotion_state
     emotion_score += score
+    emotion_num = 2
     if 0 <= emotion_score < 20:
         emotion_state = "悲伤"
+        emotion_num = 0
     elif 20 <= emotion_score < 40:
         emotion_state = "焦虑"
+        emotion_num = 1
     elif 40 <= emotion_score < 60:
         emotion_state = "平静"
+        emotion_num = 2
     elif 60 <= emotion_score < 80:
         emotion_state = "开心"
+        emotion_num = 3
     elif 80 <= emotion_score <= 100:
         emotion_state = "激动"
+        emotion_num = 4
     elif emotion_score < 0:
         emotion_score = 0
     elif emotion_score > 100:
         emotion_score = 100
-    return emotion_state
+    return emotion_state,emotion_num
 
 def ai_response():
     """
@@ -303,12 +309,12 @@ def ai_response():
     keyword,score,result = study_for_memory.search_from_memory(prompt)
     if score == "None":
         score = 0
-    emotion_state = set_emotion(score)
+    emotion_state,emotion_num = set_emotion(score)
     role_json = {
         "角色名称": role_name,
         "角色性别": role_sex,
         "角色年龄": role_age,
-        "角色当前情绪": f"你当前的心情值为{emotion_score}(范围为[0-100])，正处于{emotion_state}状态",
+        "角色当前情绪": f"你当前的心情值为{emotion_score}(范围为[0-100])，正处于{emotion_state}状态，此时角色的情绪表现为:{role_emotional_display[emotion_num]}",
         "你需要扮演的角色设定": role_prompt,
         "你之前的聊天记录:": memory.short_term_memory_window(prompt)
     }
@@ -496,7 +502,7 @@ async def check_song_search():
             tts_thread.start()
             easy_ai_vtuber_thread = threading.Thread(
                 target=lambda: to_easy_ai_vtuber_api(
-                    "speak",os.path.join(project_root, f"download/{song_name}.wav")))
+                    "rhythm",os.path.join(project_root, f"download/{song_name}.wav")))
             easy_ai_vtuber_thread.start()
 
 # 唱歌线程
@@ -515,7 +521,7 @@ async def check_song_play():
             tts_thread.start()
         else:
             easy_ai_vtuber_thread = threading.Thread(
-                target=lambda: to_easy_ai_vtuber_api("speak",os.path.join(hps.songdatabase.song_path, f'{song_name}.wav')))
+                target=lambda: to_easy_ai_vtuber_api("sing",os.path.join(hps.songdatabase.song_path, f'{song_name}.wav')))
             easy_ai_vtuber_thread.start()
 
 def song_play(path):
@@ -538,10 +544,23 @@ def song_play(path):
 
 def to_easy_ai_vtuber_api(type,path):
     global is_tts_play_ready,is_song_play_ready,is_song_cover_ready
-    data = {
-        "type": type,  # 说话动作
-        "speech_path": path  # 语音音频路径
-    }
+    if type == "speak":
+        data = {
+            "type": type,  # 说话动作
+            "speech_path": path  # 语音音频路径
+        }
+    elif type == "rhythm":
+        data = {
+            "type": type,  # 节奏摇动作
+            "music_path": path  # 歌曲音频路径
+        }
+    elif type == "sing":
+        data = {
+            "type": "sing",
+            "music_path": path,  # 修改为原曲路径
+            "voice_path": path,  # 修改为人声音频路径
+            "mouth_offset": 0.0
+        }
     response = requests.post(easy_ai_vtuber_url, json=data)
     if response.status_code == 200:
         print("\033[31measy_ai_vtuber_api请求成功\033[0m")
