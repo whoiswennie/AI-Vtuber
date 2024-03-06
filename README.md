@@ -11,6 +11,10 @@
 [文档教程](https://www.yuque.com/alipayxxda4itl6o/xgcgm6) | [整合包测试](https://pan.quark.cn/s/07c0aaefd558)
 
 
+## vtuber部分效果演示（演示的是流萤整合包的流萤不同情况下的动作）
+
+
+
 ## 使用须知
 
 ---
