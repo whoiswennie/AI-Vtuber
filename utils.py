@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
 import json
+import socket
+
 import torch
 import numpy as np
 from tqdm import tqdm
@@ -235,6 +237,7 @@ def _get_name_params(model_path, model_hash):
     model_params_auto = str('lib_v5/modelparams/tmodelparam.json')
     param_name_auto = str('User Model Param Set')
   return param_name_auto, model_params_auto
+
 class HParams():
   def __init__(self, **kwargs):
     for k, v in kwargs.items():
@@ -300,5 +303,22 @@ def to_jsonl(sys_prompt):
           messages = [{"role": "system", "content": sys_prompt},{"role": "user", "content": prompt}, {"role": "assistant", "content": completion}]
           out_file.write(json.dumps({"messages": messages}, ensure_ascii=False) + '\n')
 
+
+def check_port(host, port):
+  # 创建一个套接字对象
+  s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+  try:
+    # 尝试连接到指定的主机和端口
+    s.connect((host, port))
+    # 如果连接成功，说明端口已被占用
+    # print(f"Port {port} on {host} is already in use")
+    return True
+  except socket.error as e:
+    # 如果连接失败，说明端口未被占用
+    # print(f"Port {port} on {host} is not in use")
+    return False
+  finally:
+    # 关闭套接字连接
+    s.close()
 
 #to_jsonl("我想让你成为我的知识点整理员,你需要按照我的要求把内容存入字典中。你的目标是帮助我整理最佳的知识点信息,这些知识点将为你提供信息参考。你将遵循以下过程：1.首先，你会问我知识点是关于什么的。我会告诉你，但我们需要通过不断的重复来改进它，通过则进行下一步。2.根据我的输入，你会创建三个部分（这三个部分必须存放在一个格式化json的字典结构中）：a)修订整理后的知识点(你整合汇总后的信息，你不要随意删除之前已经提取的信息，应该清晰、精确、易于理解，应当包含之前提取的所有有关信息块)b)建议(你提出建议，哪些细节应该包含在整理的知识点中，以使其更完善)c)问题(你提出相关问题，询问我需要哪些额外信息来补充进你整理的信息)3.你整理的知识点数据应该采用我发出请求的形式，由你执行。4.我们将继续这个迭代过程我会提供更多的信息。你会更新“修订后的，你整理的信息'’部分的请求，直到它完整为止。")

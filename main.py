@@ -598,7 +598,8 @@ async def data_monitor():
         "AudioCount": AudioCount
     }
 
-    response = requests.post('http://localhost:9550/api', json=data)
+    if utils.check_port('localhost',9550):
+        response = requests.post('http://localhost:9550/api', json=data)
 
 
 
