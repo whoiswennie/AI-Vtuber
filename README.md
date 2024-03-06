@@ -23,6 +23,7 @@ https://github.com/whoiswennie/AI-Vtuber/assets/104626642/4422cde1-e6c2-4c7c-856
 </video>
 
 [流萤：说话状态]
+
 https://github.com/whoiswennie/AI-Vtuber/assets/104626642/6bb1bfda-c1e4-4a16-812d-f155f3c7619c
 
 <video width="640" height="360" controls>
@@ -31,6 +32,7 @@ https://github.com/whoiswennie/AI-Vtuber/assets/104626642/6bb1bfda-c1e4-4a16-812
 </video>
 
 [流萤：点歌状态]
+
 https://github.com/whoiswennie/AI-Vtuber/assets/104626642/8e5db4d6-f71c-4a94-a474-e5bd5f31f251
 
 <video width="640" height="360" controls>
@@ -39,6 +41,7 @@ https://github.com/whoiswennie/AI-Vtuber/assets/104626642/8e5db4d6-f71c-4a94-a47
 </video>
 
 [流萤：唱歌状态]
+
 https://github.com/whoiswennie/AI-Vtuber/assets/104626642/db5347d6-95f7-4836-95fd-00040e9826c4
 
 <video width="640" height="360" controls>
