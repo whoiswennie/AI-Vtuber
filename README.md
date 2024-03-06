@@ -13,7 +13,19 @@
 
 ## vtuber部分效果演示（演示的是流萤整合包的流萤不同情况下的动作）
 
+[流萤：睡眠状态]
+<iframe width="560" height="315" src="https://www.bilibili.com/video/BV1VJ4m1h7Qr?p=1" frameborder="0" allowfullscreen></iframe>
 
+[流萤：说话状态]
+<iframe width="560" height="315" src="https://www.bilibili.com/video/BV1km411U7bc" frameborder="0" allowfullscreen></iframe>
+
+[流萤：点歌状态]
+<iframe width="560" height="315" src="https://www.bilibili.com/video/BV1VJ4m1h7Qr?p=3" frameborder="0" allowfullscreen></iframe>
+
+[流萤：唱歌状态]
+<iframe width="560" height="315" src="https://www.bilibili.com/video/BV1VJ4m1h7Qr?p=4" frameborder="0" allowfullscreen></iframe>
+
+---
 
 ## 使用须知
 
