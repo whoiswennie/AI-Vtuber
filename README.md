@@ -14,24 +14,33 @@
 ## vtuber部分效果演示（演示的是流萤整合包的流萤不同情况下的动作）
 
 [流萤：睡眠状态]
+
+https://github.com/whoiswennie/AI-Vtuber/assets/104626642/4422cde1-e6c2-4c7c-8562-f5f1d2ab5c8c
+
 <video width="640" height="360" controls>
   <source src="assets/ly_sleep.mp4" type="video/mp4">
   Your browser does not support the video tag.
 </video>
 
 [流萤：说话状态]
+https://github.com/whoiswennie/AI-Vtuber/assets/104626642/6bb1bfda-c1e4-4a16-812d-f155f3c7619c
+
 <video width="640" height="360" controls>
   <source src="assets/ly_talk.mp4" type="video/mp4">
   Your browser does not support the video tag.
 </video>
 
 [流萤：点歌状态]
+https://github.com/whoiswennie/AI-Vtuber/assets/104626642/8e5db4d6-f71c-4a94-a474-e5bd5f31f251
+
 <video width="640" height="360" controls>
   <source src="assets/ly_search.mp4" type="video/mp4">
   Your browser does not support the video tag.
 </video>
 
 [流萤：唱歌状态]
+https://github.com/whoiswennie/AI-Vtuber/assets/104626642/db5347d6-95f7-4836-95fd-00040e9826c4
+
 <video width="640" height="360" controls>
   <source src="assets/ly_sing.mp4" type="video/mp4">
   Your browser does not support the video tag.
