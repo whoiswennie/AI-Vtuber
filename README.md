@@ -3,15 +3,19 @@
 <a href="//github.com/whoiswennie/AI-Vtuber/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/whoiswennie/AI-Vtuber?color=%09%2300BFFF&style=flat-square"></a>   <a href="//github.com/whoiswennie/AI-Vtuber/issues"><img alt="GitHub issues" src="https://img.shields.io/github/issues/whoiswennie/AI-Vtuber?color=Emerald%20green&style=flat-square"></a>   <a href="//github.com/whoiswennie/AI-Vtuber/network"><img alt="GitHub forks" src="https://img.shields.io/github/forks/whoiswennie/AI-Vtuber?color=%2300BFFF&style=flat-square"></a>   <a href="//www.python.org"><img src="https://img.shields.io/badge/python-3.10+-blue.svg" alt="python"></a>
 
 
+---
+## Tips
+
+最近再忙毕业季的事情，本项目可能会更新的比较慢，不过并未落下一些相关模块的更新。最近新增了so-vits-svc4.1和EasyAIVtuber1.1.0的整合包。之后的一些新的功能和改动也会在本块内容中说明。
 
 ---
 
 ## 附件
 
-[文档教程](https://www.yuque.com/alipayxxda4itl6o/xgcgm6) | [整合包测试](https://pan.quark.cn/s/07c0aaefd558)
+[文档教程](https://www.yuque.com/alipayxxda4itl6o/xgcgm6) | [整合包测试](https://pan.quark.cn/s/07c0aaefd558) | [视频效果演示（AI-Vtuber合集）](https://www.bilibili.com/video/BV1ur421p7CU)
 
 
-## vtuber部分效果演示（演示的是流萤整合包的流萤不同情况下的动作）
+## vtuber数字人效果演示（演示的是流萤整合包的流萤不同情况下的动作）
 
 [流萤：睡眠状态]
 
