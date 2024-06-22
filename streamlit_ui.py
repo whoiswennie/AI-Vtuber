@@ -2,19 +2,11 @@ import subprocess
 import webbrowser
 import pandas as pd
 import shutil
-import chroma_database
-import spleeter_to_svc
+#from func.chroma_database import chroma_database
 import streamlit as st
-import chat_api
 import os
 import json
-import memory
-import study_for_memory
-import tts_module
 import utils
-import make_song_n4j
-import tool.Fast_Whisper
-import tool.search_for_song
 from zhipuai import ZhipuAI
 import pyaudio
 import wave
@@ -286,7 +278,7 @@ def main():
         with col1:
             if st.button("开启直播"):
                 subprocess.Popen(["cmd", "/c", "start", "python", "blivedm_api.py"], shell=True)
-                subprocess.Popen(["cmd", "/c", "start", "python", "main.py"], shell=True)
+                subprocess.Popen(["cmd", "/c", "start", "python", "bilibili_main.py"], shell=True)
                 # 构建iframe标签的HTML代码，并将BV号插入到URL中
                 webbrowser.open(f"https://live.bilibili.com/{room_id}")
         with col2:
@@ -302,7 +294,7 @@ def main():
         with col3:
             if st.button("启动flask监听"):
                 st.success("flask监听端口启动成功")
-                subprocess.Popen(['cmd', '/k', 'python', 'flask_live_broadcast_data_monitor.py'], creationflags=subprocess.CREATE_NEW_CONSOLE)
+                subprocess.Popen(['cmd', '/k', 'python', 'flask_ai_vtuber_api.py'], creationflags=subprocess.CREATE_NEW_CONSOLE)
         with col4:
             if st.button("判断所有端口是否启动"):
                 import socket
@@ -691,7 +683,7 @@ def main():
                         manager.update_emotion(k, text_emotion)
                         manager.get_association(k)
                         manager.add_association(txt_name)
-                        chroma_database.make_db("chroma_database/text/template_upload.txt",f"chroma_database/database/{k}",chunk_size=100)
+                        chroma_database.make_db("chroma_database/text/template_upload.txt", f"chroma_database/database/{k}", chunk_size=100)
                         with open(os.path.join(output_dir,f"{txt_name}.txt"),"w",encoding="utf-8") as f:
                             f.write(modified_text)
                         st.success("新知识储存完毕！")
@@ -716,7 +708,7 @@ def main():
                         manager.update_emotion(k, text_emotion)
                         manager.get_association(k)
                         manager.add_association(txt_name)
-                        chroma_database.make_db("chroma_database/text/template_upload.txt",f"chroma_database/database/{k}",chunk_size=100)
+                        chroma_database.make_db("chroma_database/text/template_upload.txt", f"chroma_database/database/{k}", chunk_size=100)
                         with open(os.path.join(output_dir,f"{txt_name}.txt"),"w",encoding="utf-8") as f:
                             f.write(content)
                         st.success("新知识储存完毕！")
@@ -785,7 +777,7 @@ def main():
                                     for filename in os.listdir(folder_path):
                                         if filename.endswith(".txt"):
                                             file_path = os.path.join(folder_path, filename)
-                                            chroma_database.make_db(file_path,folder_path,chunk_size=100)
+                                            chroma_database.make_db(file_path, folder_path, chunk_size=100)
                                             st.success("向量库更新成功！")
                                 else:
                                     st.warning("请输入文件夹路径！")
@@ -920,7 +912,7 @@ def main():
 
 if __name__ == '__main__':
     # 初始化
-    hps = utils.get_hparams_from_file("configs/config.json")
+    hps = utils.get_hparams_from_file("configs/json/config.json")
     api_key = hps.api_path.llm_api.zhipuai_key
     song_path = hps.songdatabase.song_path
     room_id = hps.bilibili.blivedm.room_id

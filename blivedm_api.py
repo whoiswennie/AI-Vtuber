@@ -1,28 +1,31 @@
 # -*- coding: utf-8 -*-
+import argparse
 import asyncio
-import json
-
-import utils
-import blivedm.blivedm as blivedm
-import blivedm.blivedm.models.open_live as open_models
-import blivedm.blivedm.models.web as web_models
-
-danmu_count = 0
-hps = utils.get_hparams_from_file("configs/config.json")
-# 在开放平台申请的开发者密钥
-ACCESS_KEY_ID = hps.bilibili.blivedm.ACCESS_KEY_ID
-ACCESS_KEY_SECRET = hps.bilibili.blivedm.ACCESS_KEY_SECRET
-# 在开放平台创建的项目ID
-APP_ID = hps.bilibili.blivedm.APP_ID
-# 主播身份码
-ROOM_OWNER_AUTH_CODE = hps.bilibili.blivedm.ROOM_OWNER_AUTH_CODE
+import requests
+import tools.blivedm.blivedm as blivedm
+import tools.blivedm.blivedm.models.open_live as open_models
+import tools.blivedm.blivedm.models.web as web_models
 
 
-async def main():
-    await run_single_client()
+async def main(ACCESS_KEY_ID,ACCESS_KEY_SECRET,APP_ID,ROOM_OWNER_AUTH_CODE):
+    """
+
+    Args:
+        # 在开放平台申请的开发者密钥
+        ACCESS_KEY_ID:
+        ACCESS_KEY_SECRET:
+        # 在开放平台创建的项目ID
+        APP_ID:
+        # 主播身份码
+        ROOM_OWNER_AUTH_CODE:
+
+    Returns:
+
+    """
+    await run_single_client(ACCESS_KEY_ID,ACCESS_KEY_SECRET,APP_ID,ROOM_OWNER_AUTH_CODE)
 
 
-async def run_single_client():
+async def run_single_client(ACCESS_KEY_ID,ACCESS_KEY_SECRET,APP_ID,ROOM_OWNER_AUTH_CODE):
     """
     演示监听一个直播间
     """
@@ -49,19 +52,11 @@ async def run_single_client():
 class MyHandler(blivedm.BaseHandler):
     def _on_heartbeat(self, client: blivedm.BLiveClient, message: web_models.HeartbeatMessage):
         print(f'[{client.room_id}] 心跳')
-        return
 
     def _on_open_live_danmaku(self, client: blivedm.OpenLiveClient, message: open_models.DanmakuMessage):
-        global questionName,questionList,danmu_count
         print(f'[{message.room_id}] {message.uname}：{message.msg}')
-        danmu_file_path = f'logs/danmu/{danmu_count}.json'
-        data_to_write = {
-            'user_name': message.uname,
-            'content': message.msg
-        }
-        with open(danmu_file_path, 'w') as file:
-            json.dump(data_to_write, file)
-        danmu_count += 1
+        DANMU_dict = {"audience_name": message.uname, "DANMU_MSG": message.msg}
+        requests.post('http://localhost:9551/AI_VTuber/DANMU_MSG', json=DANMU_dict)
 
     def _on_open_live_gift(self, client: blivedm.OpenLiveClient, message: open_models.GiftMessage):
         coin_type = '金瓜子' if message.paid else '银瓜子'
@@ -87,4 +82,14 @@ class MyHandler(blivedm.BaseHandler):
 
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    parser = argparse.ArgumentParser(description='blivedm parameters')
+    parser.add_argument('-AKI', '--ACCESS_KEY_ID', type=str)
+    parser.add_argument('-AKS', '--ACCESS_KEY_SECRET', type=str)
+    parser.add_argument('-AI', '--APP_ID', type=int)
+    parser.add_argument('-ROAC', '--ROOM_OWNER_AUTH_CODE', type=str)
+    args = parser.parse_args()
+    ACCESS_KEY_ID = args.ACCESS_KEY_ID
+    ACCESS_KEY_SECRET = args.ACCESS_KEY_SECRET
+    APP_ID = args.APP_ID
+    ROOM_OWNER_AUTH_CODE = args.ROOM_OWNER_AUTH_CODE
+    asyncio.run(main(ACCESS_KEY_ID,ACCESS_KEY_SECRET,APP_ID,ROOM_OWNER_AUTH_CODE))

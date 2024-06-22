@@ -1,242 +1,29 @@
 # -*- coding: utf-8 -*-
+import time
 
+import ffmpeg
 import json
+import os
+import re
+import shutil
 import socket
-
-import torch
-import numpy as np
-from tqdm import tqdm
-
-def make_padding(width, cropsize, offset):
-  left = offset
-  roi_size = cropsize - left * 2
-  if roi_size == 0:
-    roi_size = cropsize
-  right = roi_size - (width % roi_size) + left
-
-  return left, right, roi_size
+from urllib.parse import urlparse
+from fuzzywuzzy import process
 
 
-def inference(X_spec, device, model, aggressiveness, data):
-  '''
-  data ： dic configs
-  '''
-
-  def _execute(X_mag_pad, roi_size, n_window, device, model, aggressiveness):
-    model.eval()
-
-    with torch.no_grad():
-      preds = []
-
-      iterations = [n_window]
-
-      total_iterations = sum(iterations)
-      for i in tqdm(range(n_window)):
-        start = i * roi_size
-        X_mag_window = X_mag_pad[None, :, :, start:start + data['window_size']]
-        X_mag_window = torch.from_numpy(X_mag_window).to(device)
-
-        pred = model.predict(X_mag_window, aggressiveness)
-
-        pred = pred.detach().cpu().numpy()
-        preds.append(pred[0])
-
-      pred = np.concatenate(preds, axis=2)
-    return pred
-
-  def preprocess(X_spec):
-    X_mag = np.abs(X_spec)
-    X_phase = np.angle(X_spec)
-
-    return X_mag, X_phase
-
-  X_mag, X_phase = preprocess(X_spec)
-
-  coef = X_mag.max()
-  X_mag_pre = X_mag / coef
-
-  n_frame = X_mag_pre.shape[2]
-  pad_l, pad_r, roi_size = make_padding(n_frame,
-                                        data['window_size'], model.offset)
-  n_window = int(np.ceil(n_frame / roi_size))
-
-  X_mag_pad = np.pad(
-    X_mag_pre, ((0, 0), (0, 0), (pad_l, pad_r)), mode='constant')
-
-  pred = _execute(X_mag_pad, roi_size, n_window,
-                  device, model, aggressiveness)
-  pred = pred[:, :, :n_frame]
-
-  if data['tta']:
-    pad_l += roi_size // 2
-    pad_r += roi_size // 2
-    n_window += 1
-
-    X_mag_pad = np.pad(
-      X_mag_pre, ((0, 0), (0, 0), (pad_l, pad_r)), mode='constant')
-
-    pred_tta = _execute(X_mag_pad, roi_size, n_window,
-                        device, model, aggressiveness)
-    pred_tta = pred_tta[:, :, roi_size // 2:]
-    pred_tta = pred_tta[:, :, :n_frame]
-
-    return (pred + pred_tta) * 0.5 * coef, X_mag, np.exp(1.j * X_phase)
-  else:
-    return pred * coef, X_mag, np.exp(1.j * X_phase)
-
-
-def _get_name_params(model_path, model_hash):
-  ModelName = model_path
-  if model_hash == '47939caf0cfe52a0e81442b85b971dfd':
-    model_params_auto = str('lib_v5/modelparams/4band_44100.json')
-    param_name_auto = str('4band_44100')
-  if model_hash == '4e4ecb9764c50a8c414fee6e10395bbe':
-    model_params_auto = str('lib_v5/modelparams/4band_v2.json')
-    param_name_auto = str('4band_v2')
-  if model_hash == 'e60a1e84803ce4efc0a6551206cc4b71':
-    model_params_auto = str('lib_v5/modelparams/4band_44100.json')
-    param_name_auto = str('4band_44100')
-  if model_hash == 'a82f14e75892e55e994376edbf0c8435':
-    model_params_auto = str('lib_v5/modelparams/4band_44100.json')
-    param_name_auto = str('4band_44100')
-  if model_hash == '6dd9eaa6f0420af9f1d403aaafa4cc06':
-    model_params_auto = str('lib_v5/modelparams/4band_v2_sn.json')
-    param_name_auto = str('4band_v2_sn')
-  if model_hash == '5c7bbca45a187e81abbbd351606164e5':
-    model_params_auto = str('lib_v5/modelparams/3band_44100_msb2.json')
-    param_name_auto = str('3band_44100_msb2')
-  if model_hash == 'd6b2cb685a058a091e5e7098192d3233':
-    model_params_auto = str('lib_v5/modelparams/3band_44100_msb2.json')
-    param_name_auto = str('3band_44100_msb2')
-  if model_hash == 'c1b9f38170a7c90e96f027992eb7c62b':
-    model_params_auto = str('lib_v5/modelparams/4band_44100.json')
-    param_name_auto = str('4band_44100')
-  if model_hash == 'c3448ec923fa0edf3d03a19e633faa53':
-    model_params_auto = str('lib_v5/modelparams/4band_44100.json')
-    param_name_auto = str('4band_44100')
-  if model_hash == '68aa2c8093d0080704b200d140f59e54':
-    model_params_auto = str('lib_v5/modelparams/3band_44100.json')
-    param_name_auto = str('3band_44100.json')
-  if model_hash == 'fdc83be5b798e4bd29fe00fe6600e147':
-    model_params_auto = str('lib_v5/modelparams/3band_44100_mid.json')
-    param_name_auto = str('3band_44100_mid.json')
-  if model_hash == '2ce34bc92fd57f55db16b7a4def3d745':
-    model_params_auto = str('lib_v5/modelparams/3band_44100_mid.json')
-    param_name_auto = str('3band_44100_mid.json')
-  if model_hash == '52fdca89576f06cf4340b74a4730ee5f':
-    model_params_auto = str('lib_v5/modelparams/4band_44100.json')
-    param_name_auto = str('4band_44100.json')
-  if model_hash == '41191165b05d38fc77f072fa9e8e8a30':
-    model_params_auto = str('lib_v5/modelparams/4band_44100.json')
-    param_name_auto = str('4band_44100.json')
-  if model_hash == '89e83b511ad474592689e562d5b1f80e':
-    model_params_auto = str('lib_v5/modelparams/2band_32000.json')
-    param_name_auto = str('2band_32000.json')
-  if model_hash == '0b954da81d453b716b114d6d7c95177f':
-    model_params_auto = str('lib_v5/modelparams/2band_32000.json')
-    param_name_auto = str('2band_32000.json')
-
-  # v4 Models
-  if model_hash == '6a00461c51c2920fd68937d4609ed6c8':
-    model_params_auto = str('lib_v5/modelparams/1band_sr16000_hl512.json')
-    param_name_auto = str('1band_sr16000_hl512')
-  if model_hash == '0ab504864d20f1bd378fe9c81ef37140':
-    model_params_auto = str('lib_v5/modelparams/1band_sr32000_hl512.json')
-    param_name_auto = str('1band_sr32000_hl512')
-  if model_hash == '7dd21065bf91c10f7fccb57d7d83b07f':
-    model_params_auto = str('lib_v5/modelparams/1band_sr32000_hl512.json')
-    param_name_auto = str('1band_sr32000_hl512')
-  if model_hash == '80ab74d65e515caa3622728d2de07d23':
-    model_params_auto = str('lib_v5/modelparams/1band_sr32000_hl512.json')
-    param_name_auto = str('1band_sr32000_hl512')
-  if model_hash == 'edc115e7fc523245062200c00caa847f':
-    model_params_auto = str('lib_v5/modelparams/1band_sr33075_hl384.json')
-    param_name_auto = str('1band_sr33075_hl384')
-  if model_hash == '28063e9f6ab5b341c5f6d3c67f2045b7':
-    model_params_auto = str('lib_v5/modelparams/1band_sr33075_hl384.json')
-    param_name_auto = str('1band_sr33075_hl384')
-  if model_hash == 'b58090534c52cbc3e9b5104bad666ef2':
-    model_params_auto = str('lib_v5/modelparams/1band_sr44100_hl512.json')
-    param_name_auto = str('1band_sr44100_hl512')
-  if model_hash == '0cdab9947f1b0928705f518f3c78ea8f':
-    model_params_auto = str('lib_v5/modelparams/1band_sr44100_hl512.json')
-    param_name_auto = str('1band_sr44100_hl512')
-  if model_hash == 'ae702fed0238afb5346db8356fe25f13':
-    model_params_auto = str('lib_v5/modelparams/1band_sr44100_hl1024.json')
-    param_name_auto = str('1band_sr44100_hl1024')
-    # User Models
-
-  # 1 Band
-  if '1band_sr16000_hl512' in ModelName:
-    model_params_auto = str('lib_v5/modelparams/1band_sr16000_hl512.json')
-    param_name_auto = str('1band_sr16000_hl512')
-  if '1band_sr32000_hl512' in ModelName:
-    model_params_auto = str('lib_v5/modelparams/1band_sr32000_hl512.json')
-    param_name_auto = str('1band_sr32000_hl512')
-  if '1band_sr33075_hl384' in ModelName:
-    model_params_auto = str('lib_v5/modelparams/1band_sr33075_hl384.json')
-    param_name_auto = str('1band_sr33075_hl384')
-  if '1band_sr44100_hl256' in ModelName:
-    model_params_auto = str('lib_v5/modelparams/1band_sr44100_hl256.json')
-    param_name_auto = str('1band_sr44100_hl256')
-  if '1band_sr44100_hl512' in ModelName:
-    model_params_auto = str('lib_v5/modelparams/1band_sr44100_hl512.json')
-    param_name_auto = str('1band_sr44100_hl512')
-  if '1band_sr44100_hl1024' in ModelName:
-    model_params_auto = str('lib_v5/modelparams/1band_sr44100_hl1024.json')
-    param_name_auto = str('1band_sr44100_hl1024')
-
-  # 2 Band
-  if '2band_44100_lofi' in ModelName:
-    model_params_auto = str('lib_v5/modelparams/2band_44100_lofi.json')
-    param_name_auto = str('2band_44100_lofi')
-  if '2band_32000' in ModelName:
-    model_params_auto = str('lib_v5/modelparams/2band_32000.json')
-    param_name_auto = str('2band_32000')
-  if '2band_48000' in ModelName:
-    model_params_auto = str('lib_v5/modelparams/2band_48000.json')
-    param_name_auto = str('2band_48000')
-
-  # 3 Band
-  if '3band_44100' in ModelName:
-    model_params_auto = str('lib_v5/modelparams/3band_44100.json')
-    param_name_auto = str('3band_44100')
-  if '3band_44100_mid' in ModelName:
-    model_params_auto = str('lib_v5/modelparams/3band_44100_mid.json')
-    param_name_auto = str('3band_44100_mid')
-  if '3band_44100_msb2' in ModelName:
-    model_params_auto = str('lib_v5/modelparams/3band_44100_msb2.json')
-    param_name_auto = str('3band_44100_msb2')
-
-  # 4 Band
-  if '4band_44100' in ModelName:
-    model_params_auto = str('lib_v5/modelparams/4band_44100.json')
-    param_name_auto = str('4band_44100')
-  if '4band_44100_mid' in ModelName:
-    model_params_auto = str('lib_v5/modelparams/4band_44100_mid.json')
-    param_name_auto = str('4band_44100_mid')
-  if '4band_44100_msb' in ModelName:
-    model_params_auto = str('lib_v5/modelparams/4band_44100_msb.json')
-    param_name_auto = str('4band_44100_msb')
-  if '4band_44100_msb2' in ModelName:
-    model_params_auto = str('lib_v5/modelparams/4band_44100_msb2.json')
-    param_name_auto = str('4band_44100_msb2')
-  if '4band_44100_reverse' in ModelName:
-    model_params_auto = str('lib_v5/modelparams/4band_44100_reverse.json')
-    param_name_auto = str('4band_44100_reverse')
-  if '4band_44100_sw' in ModelName:
-    model_params_auto = str('lib_v5/modelparams/4band_44100_sw.json')
-    param_name_auto = str('4band_44100_sw')
-  if '4band_v2' in ModelName:
-    model_params_auto = str('lib_v5/modelparams/4band_v2.json')
-    param_name_auto = str('4band_v2')
-  if '4band_v2_sn' in ModelName:
-    model_params_auto = str('lib_v5/modelparams/4band_v2_sn.json')
-    param_name_auto = str('4band_v2_sn')
-  if 'tmodelparam' in ModelName:
-    model_params_auto = str('lib_v5/modelparams/tmodelparam.json')
-    param_name_auto = str('User Model Param Set')
-  return param_name_auto, model_params_auto
+def get_duration_ffmpeg(file_path):
+  """
+  获取音频的时长
+  :param file_path:
+  :return:
+  """
+  try:
+    probe = ffmpeg.probe(file_path)
+    stream = next((stream for stream in probe['streams'] if stream['codec_type'] == 'audio'), None)
+    duration = float(stream['duration'])
+    return duration
+  except ffmpeg._run.Error as e:
+    print(f"出现异常，{e}")
 
 class HParams():
   def __init__(self, **kwargs):
@@ -272,12 +59,21 @@ class HParams():
   def get(self,index):
     return self.__dict__.get(index)
 
-def get_hparams_from_file(config_path):
-  with open(config_path, "r", encoding="utf-8") as f:
+def get_hparams_from_file(dict_path):
+  with open(dict_path, "r", encoding="utf-8") as f:
     data = f.read()
   config = json.loads(data)
   hparams =HParams(**config)
   return hparams
+
+def get_hparams_from_dict(dict):
+  hparams = HParams(**dict)
+  return hparams
+
+def load_json(path):
+  with open(path, 'r', encoding='utf-8') as json_file:
+    data_dict = json.load(json_file)
+  return data_dict
 
 def write_json(data_dict,path):
   with open(path, 'w', encoding='utf-8') as json_file:
@@ -285,23 +81,6 @@ def write_json(data_dict,path):
 
 def update_progress(current_time, total_duration, progress):
   print(f"A: {current_time} / {total_duration} ({progress}%)", end='\r')
-
-def to_jsonl(sys_prompt):
-    # 读取原始JSON文件并转换为JSON Lines格式
-    with open('dataset/answers.json', 'r', encoding='utf-8') as f:
-      # 遍历文件的每一行
-      with open('dataset/converted_data.jsonl', 'w', encoding='utf-8') as out_file:
-        for line in f:
-          # 解析JSON对象
-          data = json.loads(line)
-          print(data)
-          # 提取问题和完成部分
-          prompt = data["prompt"].split("问题：")[1].strip()
-          print(prompt)
-          completion = data["completion"]  # 将completion视为字符串
-          # 将数据转换为新的格式并写入到JSON Lines文件中
-          messages = [{"role": "system", "content": sys_prompt},{"role": "user", "content": prompt}, {"role": "assistant", "content": completion}]
-          out_file.write(json.dumps({"messages": messages}, ensure_ascii=False) + '\n')
 
 
 def check_port(host, port):
@@ -321,4 +100,262 @@ def check_port(host, port):
     # 关闭套接字连接
     s.close()
 
+def extract_port_and_url(url):
+  parsed_url = urlparse(url)
+  if parsed_url.scheme == 'http' or parsed_url.scheme == 'https':
+    netloc = parsed_url.netloc.split(':')[0]
+    return netloc, parsed_url.port
+  elif parsed_url.scheme == 'bolt':
+    netloc = parsed_url.netloc.split(':')[0]
+    return netloc, int(parsed_url.netloc.split(':')[-1])
+  else:
+    return None, None
+
+def empty_directory(directory_path):
+  # 遍历文件夹内所有的文件与子文件夹名称
+  for filename in os.listdir(directory_path):
+    file_path = os.path.join(directory_path, filename)
+    try:
+      if os.path.isfile(file_path) or os.path.islink(file_path):
+        os.unlink(file_path)  # 删除文件或链接
+      elif os.path.isdir(file_path):
+        shutil.rmtree(file_path)  # 删除文件夹
+    except Exception as e:
+      print(f"删除 {file_path} 时出现错误。原因： {e}")
+
+def timer(func):
+  def wrapper(*args, **kwargs):
+    start_time = time.time()
+    result = func(*args, **kwargs)
+    end_time = time.time()
+    print(f"\033[31m{func.__name__} 运行时间：{end_time - start_time} 秒\033[0m")
+    return result
+
+  return wrapper
+
+def find_similar_keywords(keyword_list, string,score=50):
+  # 使用fuzzywuzzy的extractBests方法来找到最相似的匹配
+  node_index = {}
+  result = []
+  for n in keyword_list:
+    s = list(n.values())[0] + ":" + list(n.values())[1]
+    result.append(s)
+    node_index[s] = n
+  matches = process.extractBests(string, result, score_cutoff=score)
+  # 提取匹配结果和它们的相似度分数
+  similar_keywords = [(match[0], match[1]) for match in matches]
+  r_lst = []
+  for i in similar_keywords:
+    print(i[0])
+    r_lst.append((node_index[i[0]],i[1]))
+  return r_lst
+
+def replace_special_characters(filename):
+  special_chars = {
+    '/': '_',
+    '\\': '_',
+    ':': '-',
+    '?': '',
+    '？': '',
+    '*': '',
+    '"': '',
+    ' ': '_',
+    "'": "_",
+    '<': '',
+    '>': '',
+    '|': '',
+    '.': '',
+    '。': '',
+    '，': '',
+    '·': '',
+    ',': '',
+    '[': '',
+    ']': '',
+    '{': '',
+    '}': '',
+    '+': '',
+    '=': '',
+    '&': '',
+    '%': '',
+    '#': '',
+    '@': '',
+    '!': '',
+    '^': '',
+    '(': '_',  # 将'('替换为下划线
+    ')': '_',  # 将')'替换为下划线
+    '-': '_',
+    '（': '_',
+    '）': '_',
+    '、': ',',  # 将'、'替换为逗号
+    '0': '零',
+    '1': '一',
+    '2': '二',
+    '3': '三',
+    '4': '四',
+    '5': '五',
+    '6': '六',
+    '7': '七',
+    '8': '八',
+    '9': '九',
+    # 添加其他特殊字符...
+  }
+
+  # 使用正则表达式进行替换
+  try:
+    for char, replacement in special_chars.items():
+      filename = re.sub(re.escape(char), replacement, filename)
+  except TypeError as e:
+    print(e)
+
+  return filename
+
+def is_valid_json_format(data):
+  try:
+    # 检查data是否是一个列表
+    if not isinstance(data, list) or len(data) <= 1:
+      return False
+
+    # 检查列表的第一个元素是否是字符串（节点名称）
+    if not isinstance(data[0], str):
+      return False
+
+    # 检查列表的第二个元素是否是一个列表
+    if not isinstance(data[1], list):
+      return False
+
+    # 遍历列表中的每个字典，检查它们是否都有'name'键
+    for item in data[1]:
+      if not isinstance(item, dict) or 'name' not in item:
+        return False
+
+    # 如果所有检查都通过，则返回True
+    return True
+  except json.JSONDecodeError:
+    # 如果解析过程中出现错误，返回False
+    return False
+
+def split_text_by_length(content, length):
+  # 存储切分后的段落
+  segments = []
+  # 使用正则表达式查找合适的切分点
+  pattern = re.compile(r'(?<=[，。,.])')
+
+  while len(content) > length:
+    # 查找最近的逗号或句号
+    end = content[:length].rfind('，') if content[:length].rfind('，') != -1 else content[:length].rfind('。')
+    if end == -1:  # 如果在指定字数内找不到逗号或句号
+      end = length
+    else:
+      end += 1  # 包含标点符号
+    segment = content[:end].strip()
+    segments.append(segment)
+    content = content[end:].strip()
+
+  # 添加剩余的内容
+  if content:
+    segments.append(content)
+
+  return segments
+
+def read_qa_from_txt(file_path):
+  # 存储问答对的列表
+  qa_list = []
+  with open(file_path, 'r', encoding='utf-8') as file:
+    lines = file.readlines()
+  if len(lines) % 2 != 0:
+    raise ValueError("文件中的行数不是偶数，无法正确匹配问题和答案。")
+  # 遍历文件内容，将奇数行作为问题，偶数行作为答案
+  for i in range(0, len(lines), 2):
+    question = lines[i].strip()
+    answer = lines[i + 1].strip()
+    qa_dict = {'question': question, 'answer': answer}
+    qa_list.append(qa_dict)
+
+  return qa_list
+
+class CircularBuffer:
+  """
+  环形缓冲区类，用于存储和 管理 固定容量 的元素集合。
+
+  Attributes:
+      capacity (int): 缓冲区 的最大容量。
+      buffer (list): 存储元素 的列表。
+      size (int): 缓冲区 当前存储的元素数量。
+
+  Methods:
+      __init__(self, capacity): 构造函数，初始化环形缓冲区。
+      append(self, item): 向缓冲区添加一个新元素。
+      __getitem__(self, index): 通过索引访问缓冲区中的元素。
+      __len__(self): 返回缓冲区的当前大小。
+      __str__(self): 返回缓冲区的字符串表示。
+  """
+
+  def __init__(self, capacity):
+    """
+    构造函数，用于创建CircularBuffer类的实例。
+
+    Parameters:
+        capacity (int): 缓冲区的最大容量。
+    """
+    self.capacity = capacity
+    self.buffer = []
+    self.size = 0
+
+  def append(self, item):
+    """
+    向环形缓冲区添加一个新元素。
+
+    如果缓冲区已满，则先移除头部元素，再添加新元素到尾部；
+    如果缓冲区未满，则直接添加新元素到尾部，并更新缓冲区大小。
+
+    Parameters:
+        item: 要添加到缓冲区的新元素。
+    """
+    if self.size >= self.capacity:
+      self.buffer.pop(0)
+    else:
+      self.size += 1
+    self.buffer.append(item)
+
+  def __getitem__(self, index):
+    """
+    通过索引访问环形缓冲区中的元素。
+
+    Parameters:
+        index (int): 要访问的元素的索引。
+
+    Returns:
+        缓冲区中指定索引处的元素。
+    """
+    return self.buffer[index]
+
+  def __len__(self):
+    """
+    返回环形缓冲区的当前大小。
+
+    Returns:
+        int: 缓冲区中包含的元素数量。
+    """
+    return self.size
+
+  def __str__(self):
+    """
+    返回环形缓冲区的字符串表示。
+
+    Returns:
+        str: 缓冲区内容的字符串表示。
+    """
+    return str(self.buffer)
+
+  def clear(self):
+    """
+    清空环形缓冲区，移除所有元素。
+    """
+    self.buffer = []
+    self.size = 0
+
+
 #to_jsonl("我想让你成为我的知识点整理员,你需要按照我的要求把内容存入字典中。你的目标是帮助我整理最佳的知识点信息,这些知识点将为你提供信息参考。你将遵循以下过程：1.首先，你会问我知识点是关于什么的。我会告诉你，但我们需要通过不断的重复来改进它，通过则进行下一步。2.根据我的输入，你会创建三个部分（这三个部分必须存放在一个格式化json的字典结构中）：a)修订整理后的知识点(你整合汇总后的信息，你不要随意删除之前已经提取的信息，应该清晰、精确、易于理解，应当包含之前提取的所有有关信息块)b)建议(你提出建议，哪些细节应该包含在整理的知识点中，以使其更完善)c)问题(你提出相关问题，询问我需要哪些额外信息来补充进你整理的信息)3.你整理的知识点数据应该采用我发出请求的形式，由你执行。4.我们将继续这个迭代过程我会提供更多的信息。你会更新“修订后的，你整理的信息'’部分的请求，直到它完整为止。")
+#print((get_hparams_from_file("configs/json/role_setting.json").get("幻")).get("prompt"))
+
+

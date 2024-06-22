@@ -1,72 +1,18 @@
-import requests
-from bs4 import BeautifulSoup
+from zhipuai import ZhipuAI
 
+client = ZhipuAI(api_key="2df9b5a8edf8a789fac6a61a057988fe.MXfEFv0UNxGtG2pk")
 
-
-def search_wikipedia(query):
-    # 提供一个合法的用户代理字符串
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0',
-    }
-
-    # 发送请求
-    url = f'https://zh.wikipedia.org/w/api.php?action=query&format=json&titles={query}&prop=extracts&exintro=1'
-
-    try:
-        response = requests.get(url, headers=headers)
-
-        # 处理响应
-        data = response.json()
-        page_id = next(iter(data['query']['pages']))
-
-        if page_id == '-1':
-            return "未找到相关内容。"
-
-        # 获取页面的正文链接
-        page_link = f'https://zh.wikipedia.org/wiki/{query}'
-
-        # 发送请求获取页面内容
-        page_response = requests.get(page_link, headers=headers)
-
-        # 使用BeautifulSoup解析页面内容
-        soup = BeautifulSoup(page_response.content, 'html.parser')
-
-        # 提取页面正文
-        content_div = soup.find(id='mw-content-text')
-        text = ''.join([p.get_text() for p in content_div.find_all('p')])
-
-        # 移除一些特殊字符或乱码
-        valid_text = ''.join(char for char in text if char.isprintable())
-
-        return valid_text
-
-    except requests.exceptions.RequestException as e:
-        print(f"An error occurred: {e}")
-        return None
-
-
-def search_baidu(keyword):
-    url = f"https://baike.baidu.com/item/{keyword}"
-    # 发送GET请求获取页面内容
-    response = requests.get(url)
-
-    # 检查请求是否成功
-    if response.status_code == 200:
-        soup = BeautifulSoup(response.text, 'html.parser')
-        # 找到包含正文内容的标签
-        #content_tag = soup.find('div', {'class' : 'lemmaSummary_fNAax J-summary'})
-        #content_tag = soup.find('div', {'class' : 'J-lemma-content'})
-        #content_tag = soup.find('div', {'class' : 'text_xgHHZ'})
-        #print(content_tag)
-        # 找到包含文本内容的标签
-        text_spans = soup.find_all('span', class_='text_xgHHZ')
-        # 提取文本内容并组合在一起
-        text = ''.join(span.get_text() for span in text_spans)
-        return text
-    else:
-        print("请求失败:", response.status_code)
-        return None
-
-print("结果:",search_wikipedia("洛天依"))
-print(search_baidu("洛天依"))
-
+from func.search import web_search
+#url = web_search.search_baike("米哈游")
+#print("url:",url)
+messages = [
+{
+  "role": "user",
+  "content": f"根据该链接的信息，Hanser是什么星座：https://baike.baidu.com/item/Hanser/57101712"
+}
+]
+response = client.chat.completions.create(
+    model="glm-3-turbo", # 填写需要调用的模型名称
+    messages=messages,
+)
+print(response.choices[0].message)

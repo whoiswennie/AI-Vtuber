@@ -1,0 +1,14 @@
+*.mp3
+*.mp4
+*.wav
+*.flac
+*.pt
+.idea
+_pycache_
+configs/json/config.json
+data/chroma_database/database
+output/
+runtime/
+template
+tools/uvr5/uvr5_weights
+*.dll
