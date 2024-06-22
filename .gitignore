@@ -11,4 +11,5 @@ output/
 runtime/
 template
 tools/uvr5/uvr5_weights
+tools/neo4j-chs-community-4.2.2-windows/data
 *.dll

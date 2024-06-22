@@ -4,18 +4,18 @@
 
 
 ---
-## Tips
+## 项目简介
 
-最近再忙毕业季的事情，本项目可能会更新的比较慢，不过并未落下一些相关模块的更新。最近新增了so-vits-svc4.1和EasyAIVtuber1.1.0的整合包。之后的一些新的功能和改动也会在本块内容中说明。
+本项目旨在实现一个高自由度的可定制AI-VTuber。支持对接哔哩哔哩直播间，以智谱API作为语言基座模型，拥有意图识别、长短期记忆（直接记忆和联想记忆），支持搭建认知库、歌曲作品库，接入了当前热门的一些语音转换、语音合成、图像生成、数字人驱动项目。提供了一个便于操作的客户端。
 
 ---
 
 ## 附件
 
-[文档教程](https://www.yuque.com/alipayxxda4itl6o/xgcgm6) | [整合包测试](https://pan.quark.cn/s/07c0aaefd558) | [视频效果演示（AI-Vtuber合集）](https://www.bilibili.com/video/BV1ur421p7CU)
+[文档教程(正在更新中)](https://www.yuque.com/alipayxxda4itl6o/xgcgm6)| [视频效果演示（这个是老版本的演示）](https://www.bilibili.com/video/BV1ur421p7CU)
 
 
-## vtuber数字人效果演示（演示的是流萤整合包的流萤不同情况下的动作）
+## VTuber数字人效果演示（对接EasyAIVTuber数字人项目实现：以流萤为例）
 
 [流萤：睡眠状态]
 
@@ -56,13 +56,12 @@ https://github.com/whoiswennie/AI-Vtuber/assets/104626642/db5347d6-95f7-4836-95f
 ---
 
 ## 使用须知
+请注意：由于当前仓库缺失一些大容量的重要文件，导致当前分支的源码暂时无法复现，本分支在与主分支合并后会提供完成的源码仓库和整合包，请耐心等待。
 
 ---
-## 当前版本介绍（因为很多功能正在调整中，暂时就写一个简略的说明，等该版本稳定后会提供详细的教学视频和文档）
-#### --1.支持与哔哩哔哩直播间对接
-#### -----支持弹幕聊天、唱歌【此功能对接创作者自制的歌库图数据库，支持用歌名、原唱、歌曲语言、风格、自定义的标签等来点歌，播放队列可以无限添加（最新一次的点歌会插队播放）】、点歌【支持哔哩哔哩和网易云非会员歌曲点歌，会优先于唱歌队列播放】、翻唱【支持对之前点歌的音频进行实时翻唱（对接你的so-vits-svc4.1）】
-#### --2.支持定制化
-#### -----支持歌库定制【将你做好的翻唱信息按要求填写在歌库.csv中，启动streamlit_agent.py可以将其录入你的图数据库中】、支持角色性格和认知定制【在streamlit页面端中可以给你的虚拟主播塑造性格和基础认知，大致原理就是通过向量数据库来进行长期记忆存储，其中每一个认知实体都会在索引表中建立目录，之后在聊天时会根据用户的问题去合适的目录索引对应的向量数据，ai会根据涉及到的关键词产生情绪的变动，情绪会最终反馈在说话的语气里】
+## 当前版本功能介绍
+**【正在施工中】**
+
 
 ---
 
@@ -125,7 +124,7 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 
 #### streamlit页面版客户端
 ```pyth
-streamlit run streamlit_ui.py
+start.bat  #启动客户端
 ```
 
 ##### 国内镜像源
@@ -138,43 +137,17 @@ streamlit run streamlit_ui.py
 豆瓣：http://pypi.douban.com/simple/
 ```
 
-## 预训练模型和其余配置文件
-夸克网盘链接:https://pan.quark.cn/s/a039b9c03692
-
-#### 建立图数据库
-环境：jdk-15
-图数据库版本:neo4j-4.2
-
-#### 虚拟声卡
-voicemeeter
-
-#### 预训练模型存放路径
-
-【faster-whisper】
-
-###### AI-Vtuber/faster-whisper-webui/Models/faster-whisper/large-v2（v3暂时有bug）
-###### AI-Vtuber/faster-whisper-webui/Models/silero-vad
-
-【gte-base-zh】
-
-###### AI-Vtuber/pretrained_models/gte-base-zh
-【uvr5】
-
-###### AI-Vtuber/pretrained_models/uvr5/models
-
-
-
 ## 对接仓库
 
 https://github.com/xfgryujk/blivedm
 
 https://github.com/ycyy/faster-whisper-webui
 
-https://github.com/yang123qwe/vocal_separation_by_uvr5
-
 https://github.com/svc-develop-team/so-vits-svc
 
 https://github.com/RVC-Boss/GPT-SoVITS
+
+https://github.com/Anjok07/ultimatevocalremovergui
 
 https://github.com/Ksuriuri/EasyAIVtuber
 
