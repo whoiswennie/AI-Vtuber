@@ -84,8 +84,8 @@ runtime
     	└───这里
 tools
 ├───uvr5
-└───uvr5_weights
-	└───这里
+    └───uvr5_weights
+        └───这里
 ```
 
 **在本项目根目录中，存在以下两个bat脚本**
