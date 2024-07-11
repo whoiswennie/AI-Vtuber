@@ -8,13 +8,15 @@ import re
 import subprocess
 import requests
 from datetime import datetime
-from flask import Flask, request, send_file, jsonify
+from flask import Flask, request, send_file, jsonify, send_from_directory, render_template
+from func.OBS.obs import ObsWebSocket
 from func.chroma_database import chroma_database
 from werkzeug.utils import secure_filename
 from flask_cors import CORS
 from func.chat import chat_api
 from func.tts import svc_api_request
 from func.tts import tts_module
+from func.t2img import sd_api
 from func.download.download_from_url import download_audio_from_url,download_video_from_url
 from func.stt import Fast_Whisper
 from func.agent import tools
@@ -30,20 +32,23 @@ class IgnoreMaxInstancesFilter(logging.Filter):
         return "maximum number of running instances reached" not in record.getMessage()
 logger.addFilter(IgnoreMaxInstancesFilter())
 
+
 #__init__
 ##
 formatted_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-empty_directory_list = ["downloads","json","stt","tts"]
-print(f"[{formatted_time}]INFO 初始化临时文件夹{empty_directory_list}...")
-for i in empty_directory_list:
-    utils.empty_directory(f"template/{i}")
 
 Debug = True
 ALLOWED_EXTENSIONS = {'txt','mp3','mp4','wav', 'ogg', 'flac'}
 hps = utils.get_hparams_from_file("configs/json/config.json")
 
 song_path_list = queue.Queue() #存放待播放音频的队列
+song_play_list = []
+images_name_list = []
+ReplyTextList = queue.Queue()
+ReplyTextList_new = queue.Queue()
 if_mpv_play = True
+if_obs_play = True
+if_easy_ai_vtuber = hps.ai_vtuber.if_easy_ai_vtuber
 self_search = True
 
 project_root = os.path.dirname(os.path.abspath(__file__))
@@ -55,7 +60,8 @@ role_setting = None
 role_name = None
 role_sex = None
 role_age = None
-role_emotional_display = None
+role_emotional_display = []
+role_tts_emotion = None
 role_language_model = hps.ai_vtuber.language_model
 for d in [i["name"] for i in hps.ai_vtuber.knowledge_database]:
     database_to_neo = [k["name"] for k in hps.ai_vtuber.knowledge_database if k["plan"] == 0 and k["name"]==d]
@@ -63,10 +69,15 @@ for d in [i["name"] for i in hps.ai_vtuber.knowledge_database]:
 knowledge_databases = "auto"
 role_edge_tts_voice =None
 role_speech_model = hps.ai_vtuber.speech_model
+role_sd_comfyui_api_json = utils.load_json(hps.ai_vtuber.sd_comfyui_api_json)
+obs_host = hps.api_path.obs.host
+obs_port = hps.api_path.obs.port
+obs_password = hps.api_path.obs.password
 emotion_score = 50
 MemoryList = utils.CircularBuffer(10)
 DANMU_MSGS = queue.Queue(10)
 faster_whisper_model = hps.api_path.fast_whisper.model_path
+
 
 app = Flask(__name__)
 CORS(app)
@@ -156,21 +167,25 @@ def upload_audio():
 @app.route('/show',methods=['POST'])
 def information_show():
     json_show = {
-        "role_name":role_name,
-        "emotion_score":emotion_score,
-        "MemoryList":list(MemoryList),
-        "knowledge_databases":knowledge_databases
+        "角色名":role_name,
+        "情绪值":emotion_score,
+        "记忆":list(MemoryList),
+        "知识库":knowledge_databases,
+        "待播放图片":images_name_list,
+        "待播放音频":song_play_list
     }
     return json_show
 
 @app.route('/switch_role',methods=['POST'])
 def role_init():
+    global role_prompt, role_setting, role_name, role_sex, role_age, role_emotional_display, emotion_score, role_edge_tts_voice, role_tts_emotion,knowledge_databases, database_to_neo, database_to_chr
     data = request.json
     role_key = data["role_key"]
     tts_plan = data["tts_plan"]
-    easyaivtuber_img = data["easyaivtuber_img"]
-    global role_prompt,role_setting,role_name,role_sex,role_age,role_emotional_display,emotion_score,role_edge_tts_voice,knowledge_databases,database_to_neo,database_to_chr
-    knowledge_databases = data["knowledge_databases"]
+    if tts_plan == 2:
+        role_tts_emotion = data["role_tts_emotion"]
+    easyaivtuber_img = data.get("easyaivtuber_img","")
+    knowledge_databases = data.get("knowledge_databases","")
     for d in [i["name"] for i in hps.ai_vtuber.knowledge_database]:
         database_to_neo = [k["name"] for k in hps.ai_vtuber.knowledge_database if k["plan"] == 0 and k["name"] == d]
         database_to_chr = [k["name"] for k in hps.ai_vtuber.knowledge_database if k["plan"] == 1 and k["name"] == d]
@@ -208,15 +223,9 @@ def role_init():
     return {"status_code": 200}
 
 def set_emotion(score):
-    global emotion_score,emotion_state
+    global role_name,emotion_score,emotion_state
     emotion_score += score
     emotion_num = 2
-    with open('configs/config.json', encoding="utf-8", mode='r') as f:
-        data = json.load(f)
-    data["ai_vtuber"]["emotion"] = emotion_score
-    with open('configs/config.json', 'w', encoding='utf-8') as config_file:
-        json.dump(data, config_file, indent=4, ensure_ascii=False)
-    emotion_score = hps.ai_vtuber.emotion
     if emotion_score >= 0 and emotion_score < 20:
         emotion_state = "悲伤"
         emotion_num = 0
@@ -236,6 +245,11 @@ def set_emotion(score):
         emotion_score = 0
     elif emotion_score > 100:
         emotion_score = 100
+    with open('configs/json/role_setting.json', encoding="utf-8", mode='r') as f:
+        data = json.load(f)
+    data[role_name]["emotion"] = emotion_score
+    with open('configs/json/role_setting.json', 'w', encoding='utf-8') as config_file:
+        json.dump(data, config_file, indent=4, ensure_ascii=False)
     return emotion_state,emotion_num
 
 @app.route('/chat',methods=['POST'])
@@ -256,6 +270,11 @@ def vtuber_chat():
         reference_text = "这是从你的作品库中获取的你即将演唱歌曲信息，请你参考其回复用户的问题:"+str(data.get("reference_text", ""))
     else:
         reference_text = data.get("reference_text", "")
+    try:
+        add_emo_score = reference_text.get("neo4j",{}).get("情绪值",0)
+    except:
+        add_emo_score = 0
+    emotion_state,emotion_num = set_emotion(add_emo_score)
     web_search = data.get("web_search", "")
     if_memory = data.get("memory", False)
     if Debug:
@@ -273,15 +292,17 @@ def vtuber_chat():
         "角色性别": role_sex,
         "角色年龄": role_age,
         "你需要扮演的角色设定": role_setting,
+        "你当前的情绪状态为": emotion_state,
+        "你当前情绪下的表现或语气应该为": role_emotional_display[emotion_num]
     }
     if Debug:
-        print("\033[36m==========================================================================\033[0m")
+        print("\033[36m··········································································\033[0m")
         print(f"\033[34m本地知识库:\033[0m{reference_text}")
         print(f"\033[34m网络搜索:\033[0m{web_search}")
     chat_messages = [
         {
             "role":"system",
-            "content":f"你之前的短期记忆为:{VTuber_memory},本条表示你与用户的历史聊天记录"
+            "content":f"你之前的短期记忆为:{VTuber_memory},本条表示你与用户的历史聊天记录。当前时间为{datetime.now().strftime('%Y年%m月%d日 %H时%M分%S秒')}"
         },
         {
             "role":"assistant",
@@ -316,10 +337,13 @@ def vtuber_chat():
     response = create_chat_completion(role_language_model, role_messages)
     message = [{"role":"user","content":query},{"role":"assistant","content":response}]
     MemoryList.append(message)
+    ReplyTextList.put(response)
     if Debug:
-        print(f"\033[34m用户问题:\033[0m{query}")
-        print(f"\033[34mAI-VTuber:\033[0m{response}")
-        print("\033[36m==========================================================================\033[0m")
+        print("\033[36m··········································································\033[0m")
+        print("\033[35m==========================================================================\033[0m")
+        print(f"\033[33m用户问题:\033[0m{query}")
+        print(f"\033[33mAI-VTuber:\033[0m{response}")
+        print("\033[35m==========================================================================\033[0m")
     print("当前短期记忆长度:",len(VTuber_memory))
     end_time = time.time()
     print(f"\033[31m思考运行时间：{end_time - start_time} 秒\033[0m")
@@ -332,7 +356,7 @@ def auto_select_knowledge_databse():
     你是一个判断工具，用来判断该选择哪些知识库来解决<>中用户的问题，要求将选择的知识库以列表的格式输出，禁止回复多余的内容。
     你当前拥有的知识库包括(其中的键为知识库名称，对应的值为该知识库的介绍)：<{hps.ai_vtuber.knowledge_database}>;
     当前用户的问题：<{content}>;
-    你输出的格式严格为：["知识库1","知识库2",...]。
+    你输出的格式严格为：["知识库1","知识库2",...]，如果不存在合适的知识库是，你应该输出[]。
     """
     chat_messages = [
         {
@@ -367,13 +391,17 @@ def agent_to_do():
     if knowledge_databases == "auto":
         knowledge_databases = requests.post(f'http://localhost:9550/auto_select_knowledge_databse', json=data_auto_select_knowledge_databse).json()
     if intention_recognition_result["intention_type"] == "chat":
-        for item in knowledge_databases:
-            if item in database_to_chr:
-                data_search = {"content": content,"database":item}
-                d1 = requests.post(f'http://localhost:9550/search_in_chroma', json=data_search).json()
-            else:
-                data_search = {"content": content,"database":item}
-                d2 = requests.post(f'http://localhost:9550/search_in_neo4j', json=data_search).json()
+        if knowledge_databases:
+            for item in knowledge_databases:
+                if item in database_to_chr:
+                    data_search = {"content": content,"database":item}
+                    d1 = requests.post(f'http://localhost:9550/search_in_chroma', json=data_search).json()
+                else:
+                    data_search = {"content": content,"database":item}
+                    d2 = requests.post(f'http://localhost:9550/search_in_neo4j', json=data_search).json()
+        else:
+            data_search = {"content": content, "database": []}
+            d2 = requests.post(f'http://localhost:9550/search_in_neo4j', json=data_search).json()
         data_chat = {"query": content, "reference_text": {"neo4j":d2,"chroma":d1}, "memory": memory}
         bot_response = requests.post('http://localhost:9550/chat', json=data_chat).text
         return {"content":bot_response,"refer_information":{"neo4j":d2,"chroma":d1},"songlist":songlist}
@@ -388,13 +416,17 @@ def agent_to_do():
             songlist = list(song_path_list.queue)
         return {"content":bot_response,"refer_information":[],"songlist":songlist}
     elif intention_recognition_result["intention_type"] == "search":
-        for item in knowledge_databases:
-            if item in database_to_chr:
-                data_search = {"content": content, "database": item}
-                d1 = requests.post(f'http://localhost:9550/search_in_chroma', json=data_search).json()
-            else:
-                data_search = {"content": content, "database": item}
-                d2 = requests.post(f'http://localhost:9550/search_in_neo4j', json=data_search).json()
+        if knowledge_databases:
+            for item in knowledge_databases:
+                if item in database_to_chr:
+                    data_search = {"content": content, "database": item}
+                    d1 = requests.post(f'http://localhost:9550/search_in_chroma', json=data_search).json()
+                else:
+                    data_search = {"content": content, "database": item}
+                    d2 = requests.post(f'http://localhost:9550/search_in_neo4j', json=data_search).json()
+        else:
+            data_search = {"content": content, "database": []}
+            d2 = requests.post(f'http://localhost:9550/search_in_neo4j', json=data_search).json()
         if_information_supplementation_judgment = tools.information_supplementation_judgment(str({"neo4j":d2,"chroma":d1}),content)
         if if_information_supplementation_judgment["judgment"] == "True":
             data_chat = {"query": content, "reference_text": {"neo4j":d2,"chroma":d1}, "memory": memory}
@@ -408,8 +440,53 @@ def agent_to_do():
             bot_response = requests.post('http://localhost:9550/chat', json=data_chat).text
             return {"content": bot_response, "refer_information": refer_information,
                     "songlist": songlist}
+    elif intention_recognition_result["intention_type"] == "draw":
+        if knowledge_databases:
+            for item in knowledge_databases:
+                if item in database_to_chr:
+                    data_search = {"content": content,"database":item}
+                    d1 = requests.post(f'http://localhost:9550/search_in_chroma', json=data_search).json()
+                else:
+                    data_search = {"content": content,"database":item}
+                    d2 = requests.post(f'http://localhost:9550/search_in_neo4j', json=data_search).json()
+        else:
+            data_search = {"content": content, "database": []}
+            d2 = requests.post(f'http://localhost:9550/search_in_neo4j', json=data_search).json()
+        data_chat = {"query": "你正在为观众画一份画，观众的要求是:"+content, "reference_text": {"neo4j":d2,"chroma":d1}, "memory": memory}
+        bot_response = requests.post('http://localhost:9550/chat', json=data_chat).text
+        global images_name_list
+        payload = json.dumps({
+            "model": "model",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "你需要理解用户的要求并将其拆解成相应的能够用于图像生成的英文prompt，其应该由简短的英文单词或英语短句组成，输出格式样例:a girl,pink hair,black shoes,long hair,young,lovely。请注意，人名与实际内容无关无需翻译出来，只输出英文单词，不要输出多余的内容，禁止输入出英文以外的语言！"
+                },
+                {
+                    "role": "user",
+                    "content": content
+                }
+            ]
+        })
+        headers = {
+            'Accept': 'application/json',
+            'Authorization': '',
+            'User-Agent': 'Apifox/1.0.0 (https://apifox.com)',
+            'Content-Type': 'application/json'
+        }
+        prompt = json.loads(requests.request("POST", "http://localhost:9550/llm_chat", headers=headers, data=payload).text)['choices'][0]['message']['content']
+        images_name_list += sd_api.sd_comfyui_generate_image(prompt, role_sd_comfyui_api_json)
+        return {"content": bot_response, "refer_information": {"neo4j": d2, "chroma": d1},
+                "save_img": images_name_list[-1]}
 
-
+@app.route('/llm_chat',methods=["POST"])
+def llm_chat():
+    req_llm_chat = request.json
+    messages = req_llm_chat["messages"]
+    from func.chat.chat_api import create_chat_completion
+    response = create_chat_completion(role_language_model, messages,response_str=False).json()
+    print(response)
+    return response
 
 @app.route('/tts',methods=["POST"])
 def vtuber_tts():
@@ -420,6 +497,7 @@ def vtuber_tts():
     req_tts = request.json
     tts_plan = req_tts["tts_plan"]
     text = req_tts["text"]
+    global role_name
     if tts_plan == 1:
         AudioCount = request.json["AudioCount"]
         edge_tts_output_folder = os.path.join(project_root, f"./template/tts")
@@ -431,11 +509,11 @@ def vtuber_tts():
         AudioCount = request.json["AudioCount"]
         gpt_sovits_output_folder = os.path.join(project_root, f"./template/tts")
         os.makedirs(gpt_sovits_output_folder, exist_ok=True)
-        tts_module.to_gpt_sovits_api(text,gpt_sovits_output_folder,AudioCount)
+        tts_module.to_gpt_sovits_api(role_name,text,gpt_sovits_output_folder,AudioCount,role_tts_emotion)
         return {"status_code": 200, "text": text, "path": os.path.join(gpt_sovits_output_folder,f"{AudioCount}.wav"), "AudioCount": AudioCount}
 
 @app.route('/mpv_play',methods=["POST"])
-def vtuber_tts_play():
+def wav_play():
     """
     {"wav_path":}
     :return:
@@ -449,15 +527,29 @@ def vtuber_tts_play():
     )
     return {"status_code": 200}
 
+@app.route('/get_songlist',methods=["POST"])
+def get_songlist():
+    return song_play_list
+
+@app.route('/clear_songlist',methods=["POST"])
+def clear_songlist():
+    global song_play_list,song_path_list
+    song_play_list = []
+    while not song_path_list.empty():
+        song_path_list.get()
+    return {"status_code": 200}
+
 @app.route('/search_song_from_neo4j',methods=["POST"])
 def vtuber_sing():
     """
     {"content"}
     :return:
     """
+    global song_play_list
     from func.Neo4j_Database import songdatabase
     content = request.json["content"]
     song_information_list,songlist = songdatabase.search_song_from_neo4j(content,"configs/json/config.json","data/json/song_dict.json")
+    song_play_list += songlist
     return {"songlist":songlist,"songdatabase_root":songdatabase_root,"song_information_list":song_information_list}
 
 @app.route('/send_audio',methods=["POST"])
@@ -471,7 +563,10 @@ def download_audio():
 
 @app.route('/draw',methods=["POST"])
 def vtuber_draw():
-    return
+    global images_name_list
+    sd_prompt = request.json["sd_prompt"]
+    images_name_list += sd_api.sd_comfyui_generate_image(sd_prompt, utils.load_json(role_sd_comfyui_api_json))
+    return images_name_list
 
 @app.route('/action',methods=["POST"])
 def vtuber_action():
@@ -503,10 +598,6 @@ def vtuber_action():
     response = requests.post("http://127.0.0.1:7888/alive", json=data)
     if response.status_code == 200:
         print("\033[31measy_ai_vtuber_api请求成功\033[0m")
-    return
-
-@app.route('/tool/uvr5',methods=["POST"])
-def tool_uvr5():
     return
 
 @app.route('/tool/faster_whisper',methods=["POST"])
@@ -551,23 +642,6 @@ def tool_download_from_url():
     else:
         return "Format error"
 
-
-@app.route('/tool/information_to_neo4j',methods=["POST"])
-def tool_information_to_neo4j():
-    """
-        {"text":,"node_name":}
-        :return:
-        """
-    req = request.json
-    text = req["text"]
-    node_name = req["node_name"]
-    data_json = tools.information_extraction(node_name,text)
-    r = tools.information_to_neo4j(data_json)
-    if r:
-        return {"status_code": 200}
-    else:
-        return False
-
 @app.route('/tool/information_to_chroma',methods=["POST"])
 def tool_information_to_chroma():
     req = request.json
@@ -611,59 +685,143 @@ def tool_search_in_neo4j():
     from func.Neo4j_Database import to_neo4j
     neo = to_neo4j.Neo4jHandler("configs/json/config.json")
     neo.connect_neo4j_database()
-    related_keywords += utils.find_similar_keywords(neo.get_nodes_with_label(database, False), content, 40)
-    if not related_keywords:
-        related_keywords += utils.find_similar_keywords(neo.get_nodes_with_label(database, False), content, 30)
-        related_keywords = sorted(related_keywords, key=lambda x: x[1], reverse=True)[:1]
-    else:
-        related_keywords = sorted(related_keywords, key=lambda x: x[1], reverse=True)[:]
-    # new_related_keywords = {"初始节点":related_keywords,"关联节点":[]}
-    new_related_keywords = {"初始节点": [], "关联节点": []}
-    new_related_keywords["初始节点"] += [f"提取到的关键词为【{n[0]['value']}】,类别为【{n[0]['name']}】与记忆库匹配度为:{n[1]}。" for n in
-                                     related_keywords]
-    related_keywords_pairs = [(related_keywords[i], related_keywords[j]) for i in range(len(related_keywords)) for j in
-                              range(i + 1, len(related_keywords))]
-    swapped_pairs = [(b, a) for a, b in related_keywords_pairs]
-    # 将交换后的组合添加到原始的pairs列表中
-    related_keywords_pairs.extend(swapped_pairs)
-    for node in related_keywords:
-        node = neo.search_node(database, node[0])
-        print(node)
-        if node[0]["relationship_types"]:
-            related_nodes = neo.find_related_nodes(node[0]["node"], node[0]["relationship_types"][0])
-            # new_related_keywords["关联节点"] += [{"name": node["name"], "value": node["value"]} for node in related_nodes]
-            new_related_keywords["关联节点"] += [f"通过关键词{node[0]['node']['value']}查询到的{n['name']}是{n['value']}。" for n in
-                                             related_nodes]
+    new_related_keywords = {"认知知识库": [], "外置知识库初始节点": [], "外置知识库关联节点": [], "情绪值":0}
+    if database:
+        # ==================================================================================================================
+        # AI-VTuber的外置知识库查询
+        related_keywords += utils.find_similar_keywords(neo.get_nodes_with_label(database, False), content, 40)
+        if not related_keywords:
+            related_keywords += utils.find_similar_keywords(neo.get_nodes_with_label(database, False), content, 30)
+            related_keywords = sorted(related_keywords, key=lambda x: x[1], reverse=True)[:1]
+        else:
+            related_keywords = sorted(related_keywords, key=lambda x: x[1], reverse=True)[:]
+        new_related_keywords["外置知识库初始节点"] += [f"提取到的关键词为【{n[0]['value']}】,类别为【{n[0]['name']}】与记忆库匹配度为:{n[1]}。" for n in
+                                              related_keywords]
+        related_keywords_pairs = [(related_keywords[i], related_keywords[j]) for i in range(len(related_keywords)) for j
+                                  in
+                                  range(i + 1, len(related_keywords))]
+        swapped_pairs = [(b, a) for a, b in related_keywords_pairs]
+        related_keywords_pairs.extend(swapped_pairs)
+        for node in related_keywords:
+            node = neo.search_node(database, node[0])
+            if node[0]["relationship_types"]:
+                related_nodes = neo.find_related_nodes(node[0]["node"], node[0]["relationship_types"][0])
+                new_related_keywords["外置知识库关联节点"] += [f"通过关键词{node[0]['node']['value']}查询到的{n['name']}是{n['value']}。"
+                                                      for n
+                                                      in related_nodes if n['name'] != "情绪值"]
+    # ==================================================================================================================
+    # AI-VTuber的认知关联知识库查询
+    related_database = []
+    related_keywords_cog = []
+    related_keywords_cog += utils.find_similar_keywords(neo.get_nodes_with_label("认知", False), content, 40)
+    new_related_keywords["认知知识库"] += [f"提取到的关键词为【{n[0]['value']}】,类别为【{n[0]['name']}】与记忆库匹配度为:{n[1]}。" for n in
+                                      related_keywords_cog]
+    try:
+        for node in related_keywords_cog:
+            node = neo.search_node("认知", node[0])
+            if node[0]["relationship_types"]:
+                related_nodes = neo.find_related_nodes(node[0]["node"], node[0]["relationship_types"][0])
+                for n in related_nodes:
+                    if n['name'] == "关联":
+                        related_database.append(n['value'])
+                new_related_keywords["外置知识库关联节点"] += [f"通过关键词{node[0]['node']['value']}查询到的{n['name']}是{n['value']}。"
+                                                      for n
+                                                      in related_nodes if n['name'] != "关联" and n['name'] != "情绪值"]
+                # ==================================================================================================================
+                # 认知识库情绪值计算
+                for n in related_nodes:
+                    if n['name'] == "情绪值":
+                        new_related_keywords["情绪值"] += int(n['value'])
+    # ==================================================================================================================
+    except:
+        pass
+    if database:
+        for d in related_database:
+            d = json.loads(d)
+            if d["plan"] == 0 and d["name"] != database:
+                database = d["name"]
+                related_keywords_cog += utils.find_similar_keywords(neo.get_nodes_with_label(database, False), content,
+                                                                    40)
+        while related_keywords_cog:
+            node = neo.search_node(database, related_keywords_cog.pop()[0])
+            try:
+                if node[0]["relationship_types"]:
+                    related_nodes = neo.find_related_nodes(node[0]["node"], node[0]["relationship_types"][0])
+                    new_related_keywords["外置知识库关联节点"] += [
+                        f"通过关键词{node[0]['node']['value']}查询到的{n['name']}是{n['value']}。"
+                        for
+                        n in
+                        related_nodes if n['name'] != "关联" and n['name'] != "情绪值"]
+            except:
+                pass
     k_lst = new_related_keywords
-    k_lst["思考路径"] = []
-    for i in related_keywords_pairs:
-        node1 = neo.search_node(database, i[0][0])[0]["node"]
-        node2 = neo.search_node(database, i[1][0])[0]["node"]
-        node_path = neo.find_shortest_path(node1, node2)
-        if node_path:
-            k_lst["思考路径"].append(node_path)
+    if database:
+        k_lst["思考路径"] = []
+        for i in related_keywords_pairs:
+            node1 = neo.search_node(database, i[0][0])[0]["node"]
+            node2 = neo.search_node(database, i[1][0])[0]["node"]
+            node_path = neo.find_shortest_path(node1, node2)
+            if node_path:
+                k_lst["思考路径"].append(node_path)
+    # ==================================================================================================================
     if Debug:
         print("\033[33m查询到的初始节点:\033[0m", related_keywords)
-        print("\033[33m查询到的关联节点:\033[0m", new_related_keywords["关联节点"])
+        if database:
+            print("\033[33m查询到的认知知识库节点:\033[0m", k_lst["认知知识库"])
+        print("\033[33m查询到的关联节点:\033[0m", new_related_keywords["外置知识库关联节点"])
     if Debug:
-        print("\033[33mAI筛查的片段:\033[0m", k_lst)
+        print("\033[33mAI筛查的内容:\033[0m", k_lst)
     print("\033[36m[关联数据查询完毕]\033[0m")
     end_time = time.time()
     print(f"\033[31m运行时间：{end_time - start_time} 秒\033[0m")
     return k_lst
 
 def song_play():
-    global if_mpv_play
-    res = requests.post('http://localhost:9550/mpv_play',
-                  json=song_path_list.get()).json()
+    global if_mpv_play,song_play_list,if_easy_ai_vtuber
+    wav_path = song_path_list.get()
+    try:
+        if if_easy_ai_vtuber:
+            action_dict = {"type": "rhythm", "music_path": wav_path}
+            res = requests.post('http://localhost:9550/action',
+                                json=action_dict).json()
+        else:
+            res = requests.post('http://localhost:9550/mpv_play',
+                          json=wav_path).json()
+    except:
+        res = requests.post('http://localhost:9550/mpv_play',
+                            json=wav_path).json()
+    song_name = os.path.splitext(os.path.basename(wav_path["wav_path"]))[0]
     if res["status_code"] == 200:
         if_mpv_play = True
+    try:
+        if song_name in song_play_list:
+            song_play_list.remove(song_name)
+    except:
+        pass
 
 def check_song_play():
     global song_path_list,if_mpv_play
     if not song_path_list.empty() and if_mpv_play:
         if_mpv_play = False
         thread = threading.Thread(target=song_play())
+        thread.start()
+        thread.join()
+
+def send_to_obs():
+    try:
+        global if_obs_play,images_name_list
+        obs = ObsWebSocket(host=obs_host, port=obs_port, password=obs_password)
+        obs.connect()
+        obs.show_image("to_obs", os.path.join(project_root,images_name_list.pop(0)))
+        obs.disconnect()
+    except Exception as e:
+        print("\033[31m出现异常:\033[0m",e)
+
+def check_obs_play():
+    global images_name_list,if_obs_play
+    if len(images_name_list)>1 and if_obs_play:
+        if_obs_play = False
+        thread = threading.Thread(target=send_to_obs())
         thread.start()
         thread.join()
 
@@ -676,6 +834,7 @@ async def run_flask():
     app_thread.start()
     # 添加定时任务
     sched1.add_job(check_song_play, "interval", seconds=1, id="check_song_play", max_instances=1)
+    sched1.add_job(check_obs_play, "interval", seconds=1, id="check_obs_play", max_instances=1)
     # 启动调度器
     sched1.start()
     try:

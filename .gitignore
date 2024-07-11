@@ -6,6 +6,7 @@
 .idea
 _pycache_
 configs/json/config.json
+configs/json/config.example.json
 data/chroma_database/database
 output/
 runtime/

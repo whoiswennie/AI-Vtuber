@@ -19,6 +19,7 @@ flask
 flask_apscheduler
 flask_cors
 streamlit_webrtc
+obs-websocket-py
 dashscope
 openai
 psutil

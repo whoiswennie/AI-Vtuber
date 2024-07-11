@@ -136,10 +136,9 @@ def ai_response():
     user_input = QuestionList.get()
     user_name = QuestionName.get()
     ques = LogsList.get()
-    data_search_in_neo4j = {"content": user_input}
-    res = requests.post(f'http://localhost:9550/search_in_neo4j', json=data_search_in_neo4j)
-    data_chat = {"query": user_input, "reference_text": str(res.json()), "memory": True}
-    bot_response = requests.post('http://localhost:9550/chat', json=data_chat).text
+    data_agent_to_do = {"content": user_input, "memory": True}
+    res = requests.post(f'http://localhost:9550/agent_to_do', json=data_agent_to_do).json()
+    bot_response = res.get("content")
     answer = f"回复{user_name}：{bot_response}"
     AnswerList.put(f"{user_input}" + "," + answer)
     current_question_count = QuestionList.qsize()

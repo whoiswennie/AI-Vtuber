@@ -13,7 +13,7 @@ zhipu_key = hps.api_path.llm_api.zhipuai_key
 qwen_key = hps.api_path.llm_api.qwen_key
 formatted_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 print(f"[{formatted_time}]INFO 正在加载语言基座模型服务，当前选用模型为:{default_glm_model}")
-def create_chat_completion(llm_model, messages, use_stream=False):
+def create_chat_completion(llm_model, messages, use_stream=False,response_str = True):
     '''
 
     :param llm_model: 你选择的大语言模型【推荐智谱api，当前支持智谱api和本地部署的chatglm3-6b模型】
@@ -22,9 +22,10 @@ def create_chat_completion(llm_model, messages, use_stream=False):
     :return:
     '''
     if llm_model == "zhipu_api":
-        response = zhipu_api(messages)
-        result = response.replace(r"\n", "")
-        return result
+        response = zhipu_api(messages,response_str=response_str)
+        if response_str == True:
+            response = response.replace(r"\n", "")
+        return response
     elif llm_model == "":
         response = qwen_api(messages)
         result = response.replace(r"\n", "")

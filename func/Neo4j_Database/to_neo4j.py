@@ -68,7 +68,7 @@ class Neo4jHandler:
                         data_lst.put(item)
             else:
                 data_str += f"通过关系【{path[0]['relationships'][int(id / 2)]}】"
-        print(data_str)
+        #print(data_str)
         return data_str
 
     def get_all_node_names(self):
@@ -78,7 +78,7 @@ class Neo4jHandler:
         query = "MATCH (n) RETURN distinct labels(n)"
         results = self.py2neo_graph.run(query).data()
         node_labels = ["_".join(record['labels(n)']) for record in results]
-        print("node_labels:",node_labels)
+        #print("node_labels:",node_labels)
         return node_labels
 
     def get_nodes_with_label(self, label, return_str = False):
@@ -102,7 +102,7 @@ class Neo4jHandler:
             for n in nodes_properties:
                 result.append(list(n.values())[0]+":"+list(n.values())[1])
 
-            print(result)
+            #print(result)
             return result
 
     # def add_node(self, tag, properties):
@@ -348,7 +348,7 @@ if __name__ == '__main__':
     a.connect_neo4j_database()
     # a.add_node("Person",{"age": 30, "city": "New York"})
     #node1 = a.search_node("夏宇闻")
-    #a.clear_and_write_nodes_to_csv("原神","../../configs/csv/neo4j.csv")
+    #a.clear_and_write_nodes_to_csv("原神","../../configs/csv/cognition.csv")
     #print(a.search_node("蕾米莉亚斯卡蕾特",{"name":"首次登场作品"}))
     #print(a.search_node("夏宇闻", {"性别": "男", "爱好": "男"}))
     # node2 = a.search_node("Person",{"name":"007"})[0]['node']

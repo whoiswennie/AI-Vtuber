@@ -75,23 +75,59 @@ async def process_text_file(voice,text, output_folder,AudioCount):
     await tts.save(mp3_output_path)
     subprocess.run(['ffmpeg', '-y', '-i', mp3_output_path, wav_output_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-def to_gpt_sovits_api(text,output_folder,AudioCount):
+# def to_gpt_sovits_api(text,output_folder,AudioCount):
+#     hps = utils.get_hparams_from_file("configs/json/config.json")
+#     wav_output_path = os.path.join(output_folder, f'{AudioCount}.wav')
+#     url = hps.api_path.gpt_sovits.url
+#     params = {
+#         "refer_wav_path": hps.api_path.gpt_sovits.refer_wav_path,
+#         "prompt_text": hps.api_path.gpt_sovits.prompt_text,
+#         "prompt_language": hps.api_path.gpt_sovits.prompt_language,
+#         "text": text,
+#         "text_language": hps.api_path.gpt_sovits.text_language
+#     }
+#     response = requests.get(url, params)
+#     print(params)
+#     if response.status_code == 200:
+#         with open(wav_output_path, "wb") as f:
+#             f.write(response.content)
+#         print("INFO tts响应成功")
+#         return True
+#     else:
+#         return False
+
+def to_gpt_sovits_api(role_name,text,output_folder,AudioCount,emotion="default",stream = False):
     hps = utils.get_hparams_from_file("configs/json/config.json")
+    role_hps = utils.load_json("configs/json/role_setting.json")
+    role_data = role_hps.get(role_name)
     wav_output_path = os.path.join(output_folder, f'{AudioCount}.wav')
-    url = hps.api_path.gpt_sovits.url
+    url = hps.api_path.gpt_sovits.url+"/tts"
     params = {
-        "refer_wav_path": hps.api_path.gpt_sovits.refer_wav_path,
-        "prompt_text": hps.api_path.gpt_sovits.prompt_text,
-        "prompt_language": hps.api_path.gpt_sovits.prompt_language,
+        "character": role_data["tts"]["plan_2"]["gpt_sovits"],
         "text": text,
-        "text_language": hps.api_path.gpt_sovits.text_language
+        "emotion":emotion
     }
-    response = requests.get(url, params)
-    print(params)
-    if response.status_code == 200:
-        with open(wav_output_path, "wb") as f:
-            f.write(response.content)
-        print("INFO tts响应成功")
-        return True
+    if not stream:
+        response = requests.get(url, params)
+        print(params)
+        if response.status_code == 200:
+            with open(wav_output_path, "wb") as f:
+                f.write(response.content)
+            print("INFO tts响应成功")
+            return True
+        else:
+            return False
     else:
-        return False
+        import pyaudio
+        p = pyaudio.PyAudio()
+        stream = p.open(format=p.get_format_from_width(2),
+                        channels=1,
+                        rate=32000,
+                        output=True)
+        url += f"?text={text}&stream=true"
+        response = requests.get(url, stream=True)
+        for data in response.iter_content(chunk_size=1024):
+            stream.write(data)
+        stream.stop_stream()
+        stream.close()
+
