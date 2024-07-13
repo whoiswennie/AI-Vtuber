@@ -221,7 +221,7 @@ def information_extraction(content):
         }
     ]
     response = chat_api.zhipu_api(messages=chat_messages)
-    print(response)
+    print("response:",response)
     try:
         pattern = r"json\n(.+?)\n```"
         json_str = re.findall(pattern, response, re.DOTALL)[0]
@@ -229,6 +229,9 @@ def information_extraction(content):
         # print("json_data:", json_data)
         # print("json_data_type:", type(json_data))
         return "success",json_data
+    except IndexError:
+        json_data = json.loads(response)
+        return "success", json_data
     except json.decoder.JSONDecodeError as e:
         print(f"JSONDecodeError: {e}")
         return "error",{"state_code":"JSONDecodeError","content":content}
@@ -370,7 +373,7 @@ for tool in common_information_retrieval_tools:
     # 获取函数名
     function_name = tool["function"]["name"]
     function_dict[function_name] = locals()[function_name]
-print("function_dict:", function_dict)
+#print("function_dict:", function_dict)
 
 def search_in_tools(content,tools):
     memory_messages = []

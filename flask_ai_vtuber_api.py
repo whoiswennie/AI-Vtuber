@@ -86,6 +86,16 @@ CORS(app)
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+@app.route('/')
+def home():
+    return send_from_directory('', 'chatUI.html')
+
+
+@app.route('/tryChat', methods=['GET', 'POST'])
+def tryChat():
+    Chatword = ReplyTextList.get()
+    return Chatword
+
 
 @app.route('/upload_txt', methods=['POST'])
 def upload_file():

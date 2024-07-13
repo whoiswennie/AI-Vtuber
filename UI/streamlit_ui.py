@@ -157,7 +157,7 @@ def main_page(hps,role_hps):
         st.session_state.gif_index += 1
         current_index = int(st.session_state.get("gif_index", 0) % len(gif_files))
         current_gif = gif_files[current_index]
-        st.sidebar.image(current_gif, caption='幻酱（本项目的看板娘）！', use_column_width=True)
+        st.sidebar.image(current_gif, caption='本项目的看板娘：幻酱', use_column_width=True)
         st.title('AI-VTuber')
         st.markdown('项目作者:这就是天幻呀')
         st.markdown("[博客官网](http://www.worldline-fantasy.top)")
@@ -813,7 +813,7 @@ def main_page(hps,role_hps):
                     with st.expander("txt转neo4j/chroma"):
                         uploaded_file = st.file_uploader("上传TXT文件", type="txt")
                         if uploaded_file is not None:
-                            if os.path.exists(os.path.join("template/txt", uploaded_file.name)):
+                            if not os.path.exists(os.path.join("template/txt", uploaded_file.name)):
                                 with open(os.path.join("template/txt", uploaded_file.name), "wb") as f:
                                     f.write(uploaded_file.getbuffer())
                             file_content = uploaded_file.read().decode("utf-8")

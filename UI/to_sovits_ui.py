@@ -90,9 +90,6 @@ def main():
                     shutil.copy2(f"{st.session_state.so_vits_protect_root_path}/pretrain/vec768l12/D_0.pth", f"{st.session_state.so_vits_protect_root_path}/logs/44k")
                     command = f'cd /d "{st.session_state.so_vits_protect_root_path}" && start "" "{st.session_state.so_vits_protect_root_path}/4模型训练.bat"'
                 subprocess.Popen(command, shell=True)
-            if st.checkbox("启动tensorboard"):
-                command = f'cd /d "{st.session_state.so_vits_protect_root_path}" && start "" "{st.session_state.so_vits_protect_root_path}/启动tensorboard.bat"'
-                subprocess.Popen(command, shell=True)
         with st.expander("5.模型推理"):
             if st.button("启动webUI"):
                 command = f'cd /d "{st.session_state.so_vits_protect_root_path}" && start "" "{st.session_state.so_vits_protect_root_path}/启动webUI.bat"'
@@ -115,6 +112,7 @@ def main():
                                 print(f'Error deleting {file_path}: {e}')
                     else:
                         print(f'The folder {folder_path} does not exist or is not a directory.')
+                st.success("项目初始化成功！")
     except Exception as e:
         st.error(e)
 
