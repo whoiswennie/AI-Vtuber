@@ -209,7 +209,7 @@ def role_init():
     role_sex = role_json_hps.sex
     role_age = role_json_hps.age
     role_emotional_display = role_json_hps.emotional_display
-    emotion_score = role_json_hps.emotion
+    emotion_score = int(role_json_hps.emotion)
     if tts_plan == 1:
         role_edge_tts_voice = role_json_hps.tts.plan_1.edge_tts
         role_so_vits_svc = role_json_hps.tts.plan_1.so_vits_svc
